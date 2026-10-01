@@ -1,0 +1,53 @@
+# Stable taxonomy of system building blocks. See architecture/index.md.
+# Risk labels in PR recaps:
+#   composes - wires existing primitives without changing them (low)
+#   extends  - changes a primitive's behavior, shape, or contract (medium)
+#   adds     - introduces a new primitive; update this file in the same PR (high)
+
+version: 1
+
+# Do-not-regress properties. Primitives and PR recaps refer to them by id;
+# docs/contributing/security.md lists the security-relevant ones.
+invariants:
+  - id: health-reports-sha
+    statement: /health returns ok and the deployed git sha.
+  - id: flags-declare-removal
+    statement: Every feature flag declares successMetric and removeWhen.
+
+groups:
+  - id: surfaces
+    name: Entry points
+  - id: core
+    name: Product core
+
+primitives:
+  - id: http-server
+    group: surfaces
+    name: HTTP server and routing
+    summary: Node HTTP server, route table, and health endpoint.
+    code:
+      - src
+    docs:
+      - docs/contributing/architecture/index.md
+    invariants:
+      - health-reports-sha
+  - id: feature-map
+    group: core
+    name: Feature catalog
+    summary: Machine-readable list of user-facing surfaces.
+    code:
+      - src/features.ts
+    docs:
+      - docs/contributing/features/README.md
+  - id: feature-flags
+    group: core
+    name: Feature flags
+    summary:
+      Named flags with an audience (off, experiments, everyone) and a removal
+      condition.
+    code:
+      - src/flags.ts
+    docs:
+      - docs/contributing/feature-flags.md
+    invariants:
+      - flags-declare-removal

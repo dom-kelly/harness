@@ -1,0 +1,45 @@
+{
+	"permissions": {
+		"allow": [
+			"Bash(npm run validate)",
+			"Bash(npm run validate:fix)",
+			"Bash(npm run lint)",
+			"Bash(npm run typecheck)",
+			"Bash(npm run test)",
+			"Bash(npm run loc)",
+			"Bash(npm run app -- *)",
+			"Bash(npx vitest run *)",
+			"Bash(node tools/*)",
+			"Bash(git diff *)",
+			"Bash(git status)",
+			"Bash(git log *)",
+			"Bash(gh issue list *)",
+			"Bash(gh pr view *)",
+			"Bash(gh pr checks *)"
+		],
+		"ask": ["Bash(git push *)", "Bash(gh pr merge *)"]
+	},
+	"hooks": {
+		"PreToolUse": [
+			{
+				"matcher": "Bash",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "node \"$CLAUDE_PROJECT_DIR/tools/claude-hooks/guard-bash.ts\""
+					}
+				]
+			}
+		],
+		"SessionStart": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "node \"$CLAUDE_PROJECT_DIR/tools/app-cli.ts\" doctor"
+					}
+				]
+			}
+		]
+	}
+}

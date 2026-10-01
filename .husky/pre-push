@@ -1,0 +1,1 @@
+node tools/git-hook-checks.ts pre-push

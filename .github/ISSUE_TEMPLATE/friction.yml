@@ -1,0 +1,37 @@
+name: Friction
+description: A durable, recurring papercut in developing this repo
+title: 'Friction: '
+labels: [friction]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Search open `friction` issues first and comment on a match instead of
+        opening a duplicate. Never paste secrets, tokens, or customer data. The
+        next agent must be able to act on this without your session.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+    validations:
+      required: true
+  - type: textarea
+    id: what-wanted
+    attributes:
+      label: What I wanted
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: Commands, files, and the exact error text.
+    validations:
+      required: true
+  - type: input
+    id: cost
+    attributes:
+      label: Cost
+      description: Time lost, retries, or confusion caused
+    validations:
+      required: true

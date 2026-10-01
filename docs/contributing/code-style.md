@@ -1,0 +1,13 @@
+# Code style
+
+Formatting and lint are mechanical (`npm run validate:fix`). This page covers
+only what the tools do not enforce. When a convention here starts getting broken
+repeatedly, turn it into a lint rule or checker and delete the line.
+
+- Match the surrounding code: naming, idiom, comment density.
+- No decorative comment banners (enforced). If a file needs sections, split it.
+- Files stay under the ratchet budget (enforced). Split by responsibility.
+- One clear contract per capability. Do not add aliases, fallbacks, or compat
+  shims for callers; fix the contract.
+- Prefer plain functions and data over classes and inheritance.
+- Types describe reality. A type that lies is a bug.
