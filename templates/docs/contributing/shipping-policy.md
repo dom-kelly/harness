@@ -23,11 +23,11 @@ A diff that touches a primitive's `invariants` says how each one still holds.
 
 ## Tiers (kody's)
 
-| Risk       | Before merging                                                   | Who merges (default)   |
-| ---------- | ---------------------------------------------------------------- | ---------------------- |
-| **Low**    | The gate check is green                                          | agent                  |
-| **Medium** | + every `reviewers.gate` check passed and its findings addressed | agent                  |
-| **High**   | + every `reviewers.required` login has reviewed                  | owner (agent parks it) |
+| Risk       | Before merging                                                          | Who merges (default)   |
+| ---------- | ----------------------------------------------------------------------- | ---------------------- |
+| **Low**    | The gate check is green                                                 | agent                  |
+| **Medium** | + every `reviewers.gate` check passed and its findings addressed        | agent                  |
+| **High**   | + every `reviewers.required` login has reviewed the current head commit | owner (agent parks it) |
 
 `policy.authority` changes who merges per tier. A repo whose merges deploy
 nothing can let agents merge high risk; a repo whose merges deploy to production
@@ -37,12 +37,19 @@ Always: not a draft, targets `main`, no test file deleted, no other check red or
 pending (except `reviewers.ignoreChecks`). `gh pr merge --admin|--auto` and
 merging through the API are refused outright.
 
+## Where the policy reads from
+
+`harness.json` and `primitives.yaml` are read from `origin/main`, never from the
+PR's own checkout, so a PR cannot lower its floors or change who may merge it;
+such a change takes effect only after it is merged under the current rules.
+
 ## Review findings
 
 A thread opened by a login in `reviewers.findingsFrom` counts as addressed when
-it is resolved, or when a reply says `Fixed in <sha>: <what changed>` or
-`wontfix: <reason>`. Reviewers not listed are read and handled on merit but do
-not block.
+it is resolved, or when a reply says `Fixed in <sha>: <what changed>` (at least
+seven hex characters) or `wontfix: <reason>`. This is an honour system: the
+policy checks the words, not the diff. Reviewers not listed are read and handled
+on merit but do not block.
 
 A finding that has come up before gets encoded, not just fixed: see the
 enforcement ladder in [harness-engineering.md](./harness-engineering.md).
@@ -52,6 +59,7 @@ enforcement ladder in [harness-engineering.md](./harness-engineering.md).
 ```json
 "policy": {
 	"gate": "validate",
+	"ciCheck": "validate",
 	"authority": { "low": "agent", "medium": "agent", "high": "owner" },
 	"reviewers": {
 		"gate": [{ "check": "Cursor Bugbot", "login": "cursor" }],

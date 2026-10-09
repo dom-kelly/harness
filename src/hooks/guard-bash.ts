@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { readConfig, type HarnessConfig } from '../lib/config.ts'
 import { findRepoRoot } from '../lib/repo.ts'
-import { evaluateMerge, prNumberFromCommand } from '../policy/merge-policy.ts'
+import { evaluateMerge, prRefFromCommand } from '../policy/merge-policy.ts'
 
 export type BlockedPattern = { regex: RegExp; reason: string }
 
@@ -56,7 +56,9 @@ export function findBlockedReason(
 }
 
 const ghMerge = /\bgh\s+pr\s+merge\b/
-const apiMerge = /\bgh\s+api\b[^|;&]*\/merge\b/
+const apiMerge =
+	/\bgh\s+api\b[^|;&]*(\/merge\b|mergePullRequest|enablePullRequestAutoMerge)/
+const mergeElsewhere = /\bgh\s+pr\s+merge\b[^|;&]*\s(?:-R|--repo)\b/
 
 /** The decision for one hook input. A bad custom pattern blocks rather than
  *  silently disabling the guard: exit 1 would be treated as "not blocking". */
@@ -69,6 +71,9 @@ export function guardDecision(
 	const command = parsed.tool_input?.command ?? ''
 	if (apiMerge.test(command)) {
 		return 'Merging through the API skips the shipping policy. Use `gh pr merge`.'
+	}
+	if (mergeElsewhere.test(command)) {
+		return 'Merging in another repo skips its shipping policy. Run the merge from that repo.'
 	}
 	const extra: Array<BlockedPattern> = []
 	for (const { pattern, reason } of config?.guard?.blocked ?? []) {
@@ -86,7 +91,7 @@ export function guardDecision(
 		ghMerge.test(command) &&
 		(config?.policy?.enforceOnMerge ?? true)
 	) {
-		const verdict = evaluateMerge(root, config, prNumberFromCommand(command))
+		const verdict = evaluateMerge(root, prRefFromCommand(command))
 		for (const line of verdict.lines) console.error(line)
 		if (!verdict.allowed) return verdict.message
 		console.error(verdict.message)
@@ -97,8 +102,14 @@ export function guardDecision(
 /** Claude Code PreToolUse hook for Bash: exit 2 refuses the command and shows
  *  the reason to the agent. */
 export function runGuardBash(input = readFileSync(0, 'utf8')) {
-	const root = findRepoRoot()
-	const reason = guardDecision(input, readConfig(root), root)
+	// Anything unexpected blocks: exit 1 would be read as "not blocking".
+	let reason: string | undefined
+	try {
+		const root = findRepoRoot()
+		reason = guardDecision(input, readConfig(root), root)
+	} catch (error) {
+		reason = `the guard hook failed (${error instanceof Error ? error.message : String(error)}); fix that before running commands`
+	}
 	if (reason) {
 		console.error(`Blocked by the harness: ${reason}`)
 		return 2

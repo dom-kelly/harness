@@ -32,7 +32,7 @@ jobs:
       # GitHub git dependencies as SSH URLs in the lockfile, so rewrite both forms.
       - run: |
           git config --global url."https://x-access-token:${HARNESS_TOKEN}@github.com/".insteadOf "https://github.com/"
-          git config --global url."https://x-access-token:${HARNESS_TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
+          git config --global --add url."https://x-access-token:${HARNESS_TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
         env:
           HARNESS_TOKEN: ${{ secrets.HARNESS_TOKEN }}
 

@@ -20,6 +20,11 @@ default to `high: owner`.
 
 ## Consequences
 
+The policy reads its configuration from `origin/main`, so a PR that changes
+authority is itself judged under the rules it is changing. Permission prompts
+for `git push` and `gh pr merge` are gone from the template: the guard refuses
+pushes to main and routes merges through the policy.
+
 An agent can merge a change to the merge policy itself here. The checks on that
 are the e2e lane, the policy's own tests and the review step in `ship-pr`, not a
 human. Revisit if a self-merged change breaks a product twice, in which case set

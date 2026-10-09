@@ -34,7 +34,7 @@ const help = `harness ${packageVersion} — the agent harness, as a CLI
   harness check [--docs]          decisions, links, skills, primitives map, repo rules
   harness classify [--base ref | --stdin] [--json]   primitives a change touches
   harness doctor                  what a fresh session needs to know
-  harness policy [pr]             may an agent merge this PR? (risk tiers, reviewers, authority)
+  harness policy [pr|url|branch]  may an agent merge this PR? (risk tiers, reviewers, authority)
   harness hook <guard-bash | typecheck | validate-on-stop | pre-commit | pre-push | node-version>
 `
 
@@ -100,7 +100,7 @@ async function main(): Promise<number> {
 			return items.every((i) => i.ok) ? 0 : 1
 		}
 		case 'policy': {
-			const verdict = evaluateMerge(root, readConfig(root), positionals[0])
+			const verdict = evaluateMerge(root, positionals[0])
 			for (const line of verdict.lines) console.error(line)
 			console.error(verdict.message)
 			return verdict.allowed ? 0 : 2
