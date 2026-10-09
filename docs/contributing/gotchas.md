@@ -19,9 +19,9 @@ or a test, make it one and delete the line.
 - A symlink in the repo breaks `git stash` (used by lint-staged) with "beyond a
   symbolic link"; keep copies and a test that they match.
 - npm records a GitHub git dependency as an SSH URL in the lockfile whatever the
-  spec says, so a CI runner without a deploy key fails `npm ci` with "Permission
-  denied (publickey)". Rewrite `ssh://git@github.com/` to a tokenised HTTPS URL
-  in CI (the validate template does).
+  spec says, and SSH needs a key even for a public repo, so a CI runner fails
+  `npm ci` with "Permission denied (publickey)". Rewrite `ssh://git@github.com/`
+  to HTTPS in CI (the validate template does).
 - kody is licensed FSL-1.1-ALv2 (GitHub shows "Other"), which permits
   non-competing use. Kent's Kody-platform packages carry no licence of their
   own.

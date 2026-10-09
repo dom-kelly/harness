@@ -27,14 +27,12 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      # The harness is a private repo: npm needs a token to clone it (HARNESS_TOKEN:
-      # a fine-grained PAT with Contents: read on dom-kelly/harness). npm records
-      # GitHub git dependencies as SSH URLs in the lockfile, so rewrite both forms.
-      - run: |
-          git config --global url."https://x-access-token:${HARNESS_TOKEN}@github.com/".insteadOf "https://github.com/"
-          git config --global --add url."https://x-access-token:${HARNESS_TOKEN}@github.com/".insteadOf "ssh://git@github.com/"
-        env:
-          HARNESS_TOKEN: ${{ secrets.HARNESS_TOKEN }}
+      # npm pins GitHub git dependencies as SSH URLs; runners have no SSH key,
+      # so clone the (public) harness over HTTPS instead. A private harness
+      # would need a token here: url."https://x-access-token:${TOKEN}@github.com/".
+      - run:
+          git config --global url."https://github.com/".insteadOf
+          "ssh://git@github.com/"
 
       - run: npm ci
       - run: npm run validate

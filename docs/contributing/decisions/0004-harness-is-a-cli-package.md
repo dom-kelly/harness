@@ -36,7 +36,8 @@ are different documents, and are not generated from each other.
 ## Consequences
 
 Improving the harness means editing `templates/` or `src/` here and running
-`npx harness sync` in each product. The repo stays private, so a product's CI
-needs read access to install it (a fine-grained token, or make the repo public).
-Revisit if the three-way merge produces conflicts on most syncs, which would
-mean managed files carry too much product-specific text.
+`npx harness sync` in each product. The repo is public (it holds no secrets), so
+a product's CI installs it with no token; npm's SSH lockfile URLs are rewritten
+to HTTPS in the validate template. Revisit if the three-way merge produces
+conflicts on most syncs, which would mean managed files carry too much
+product-specific text.
