@@ -1,3 +1,1 @@
-node bin/harness.ts hook node-version
-npx lint-staged
-node bin/harness.ts hook pre-commit
+node --disable-warning=ExperimentalWarning bin/harness.ts hook pre-commit

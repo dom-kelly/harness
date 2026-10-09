@@ -14,12 +14,14 @@
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run",
 		"test:watch": "vitest",
-		"validate": "concurrently -g -n format,lint,types,test,check,audit \"npm:format:check\" \"npm:lint\" \"npm:typecheck\" \"npm:test\" \"npm:check\" \"npm:audit:prod\"",
+		"validate": "concurrently -g -n format,lint,types,test,check,e2e,audit \"npm:format:check\" \"npm:lint\" \"npm:typecheck\" \"npm:test\" \"npm:check\" \"npm:test:e2e\" \"npm:audit:prod\"",
 		"validate:fix": "npm run format && npm run lint:fix",
-		"prepare": "husky",
+		"prepare": "node scripts/prepare.mjs",
 		"audit:prod": "npm audit --omit=dev --audit-level=moderate",
 		"harness": "node bin/harness.ts",
-		"check": "node bin/harness.ts check"
+		"check": "node bin/harness.ts check",
+		"build": "tsc -p tsconfig.build.json",
+		"test:e2e": "vitest run --config vitest.e2e.config.ts"
 	},
 	"lint-staged": {
 		"*.{ts,js,mjs}": [
@@ -40,11 +42,10 @@
 	},
 	"description": "The agent harness as a CLI: scaffold, adopt, sync, check, classify, hooks.",
 	"bin": {
-		"harness": "bin/harness.ts"
+		"harness": "dist/bin/harness.js"
 	},
 	"files": [
-		"bin",
-		"src",
+		"dist",
 		"templates",
 		"scaffold"
 	],

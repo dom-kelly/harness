@@ -1,12 +1,18 @@
 {
 	"$schema": "./node_modules/oxlint/configuration_schema.json",
-	"categories": { "correctness": "error", "suspicious": "error" },
+	"categories": {
+		"correctness": "error",
+		"suspicious": "error"
+	},
 	"rules": {
 		"typescript/no-explicit-any": "error",
 		"eslint/no-warning-comments": [
 			"error",
-			{ "terms": ["TODO", "FIXME", "HACK"], "location": "anywhere" }
+			{
+				"terms": ["TODO", "FIXME", "HACK"],
+				"location": "anywhere"
+			}
 		]
 	},
-	"ignorePatterns": ["node_modules", ".tmp"]
+	"ignorePatterns": ["node_modules", ".tmp", "dist"]
 }

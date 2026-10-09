@@ -25,6 +25,6 @@ route you changed.
 6. Record what you ran and what you saw in the PR's Testing section, with a
    screenshot for UI changes.
 
-If you write the same driver script twice, add a tool in `tools/` with a test
+If you write the same driver script twice, turn it into a script with a test
 instead; that is the trigger for an app CLI in
 [growth.md](../../../docs/contributing/growth.md).

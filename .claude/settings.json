@@ -23,7 +23,7 @@
 				"hooks": [
 					{
 						"type": "command",
-						"command": "node \"$CLAUDE_PROJECT_DIR/bin/harness.ts\" hook guard-bash"
+						"command": "node --disable-warning=ExperimentalWarning \"$CLAUDE_PROJECT_DIR/bin/harness.ts\" hook guard-bash"
 					}
 				]
 			}

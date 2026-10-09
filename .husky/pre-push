@@ -1,1 +1,1 @@
-node bin/harness.ts hook pre-push
+node --disable-warning=ExperimentalWarning bin/harness.ts hook pre-push

@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, test } from 'vitest'
-import { findBlockedReason } from '../hooks/guard-bash.ts'
+import { findBlockedReason, guardDecision } from '../hooks/guard-bash.ts'
 import { isDocsOnly, parsePrePushInput } from '../hooks/git-hooks.ts'
 import { findDecisionIssues } from './decisions.ts'
 import { extractRelativeLinks } from './doc-links.ts'
@@ -174,6 +174,17 @@ test('guard blocks force push, push to main, no-verify, destructive resets, admi
 	).toBeDefined()
 	expect(findBlockedReason('git push origin main')).toBeDefined()
 	expect(findBlockedReason('git push origin HEAD:main')).toBeDefined()
+	expect(findBlockedReason('git push origin main;')).toBeDefined()
+	expect(findBlockedReason('sh -c "git push origin main"')).toBeDefined()
+	expect(findBlockedReason('git -C . push origin main')).toBeDefined()
+	expect(
+		findBlockedReason('git push origin HEAD:refs/heads/main'),
+	).toBeDefined()
+	expect(findBlockedReason('git push origin +main')).toBeDefined()
+	expect(findBlockedReason('git push -fu origin x')).toBeDefined()
+	expect(findBlockedReason('git commit -n -m x')).toBeDefined()
+	expect(findBlockedReason('git clean --force')).toBeDefined()
+	expect(findBlockedReason('git push -n origin feature')).toBeUndefined()
 	expect(findBlockedReason('git commit -m x --no-verify')).toBeDefined()
 	expect(findBlockedReason('git reset --hard HEAD~1')).toBeDefined()
 	expect(findBlockedReason('gh pr merge 7 --admin')).toBeDefined()
@@ -207,4 +218,27 @@ test('repo rules: one lockfile and a short AGENTS.md', async () => {
 	} finally {
 		await rm(root, { recursive: true, force: true })
 	}
+})
+
+test('guard decision reads hook input and blocks on a broken custom pattern', () => {
+	const input = JSON.stringify({
+		tool_input: { command: 'npx wrangler deploy' },
+	})
+	expect(guardDecision(input, undefined)).toBeUndefined()
+	expect(
+		guardDecision(input, {
+			harness: '0',
+			product: { name: 'x' },
+			guard: {
+				blocked: [{ pattern: 'wrangler\\s+deploy', reason: 'deploys' }],
+			},
+		}),
+	).toBe('deploys')
+	expect(
+		guardDecision(input, {
+			harness: '0',
+			product: { name: 'x' },
+			guard: { blocked: [{ pattern: '(', reason: 'broken' }] },
+		}),
+	).toMatch(/invalid pattern/)
 })

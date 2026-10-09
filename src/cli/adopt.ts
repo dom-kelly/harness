@@ -6,33 +6,46 @@ import { applyTemplates, type ApplyReport } from '../lib/templates.ts'
 export const dependencyName = '@dom-kelly/harness'
 export const dependencySpec = 'github:dom-kelly/harness'
 
+/** What the templates' hooks and scripts expect a product to have. */
+export const expectedDevDependencies = {
+	[dependencyName]: dependencySpec,
+	husky: '^9.1.7',
+	'lint-staged': '^16.1.0',
+	prettier: '^3.6.0',
+	oxlint: '^1.14.0',
+}
+
 type PackageJson = {
 	name?: string
 	scripts?: Record<string, string>
 	devDependencies?: Record<string, string>
 }
 
-/** Adds the harness to an existing package.json without touching what's there.
- *  Returns the keys it added. */
+/** Adds what the harness needs to an existing package.json without touching
+ *  anything that is already there. Keeps the file's indentation. */
 export function patchPackageJson(source: string) {
 	const pkg = JSON.parse(source) as PackageJson
+	const indent = /^\t/m.test(source) ? '\t' : 2
 	const added: Array<string> = []
 	pkg.devDependencies ??= {}
-	if (!pkg.devDependencies[dependencyName]) {
-		pkg.devDependencies[dependencyName] = dependencySpec
-		added.push(`devDependencies.${dependencyName}`)
+	for (const [name, spec] of Object.entries(expectedDevDependencies)) {
+		if (!pkg.devDependencies[name]) {
+			pkg.devDependencies[name] = spec
+			added.push(`devDependencies.${name}`)
+		}
 	}
 	pkg.scripts ??= {}
 	for (const [key, value] of Object.entries({
 		harness: 'harness',
 		'harness:check': 'harness check',
+		prepare: 'husky',
 	})) {
 		if (!pkg.scripts[key]) {
 			pkg.scripts[key] = value
 			added.push(`scripts.${key}`)
 		}
 	}
-	return { source: `${JSON.stringify(pkg, null, '\t')}\n`, added, pkg }
+	return { source: `${JSON.stringify(pkg, null, indent)}\n`, added, pkg }
 }
 
 /** harness adopt: apply the templates to an existing repo, keeping every file
@@ -69,10 +82,10 @@ export function formatAdoptReport(result: ReturnType<typeof adoptRepo>) {
 	lines.push(
 		'',
 		'Next:',
-		'  1. npm install',
+		'  1. npm install   (installs the harness, husky, lint-staged, prettier, oxlint if they were missing)',
 		'  2. add `npx harness check` to your validate/verify script',
-		'  3. review .claude/settings.json and .husky/* (they call `npx harness hook …`)',
-		'  4. fill docs/contributing/architecture/primitives.yaml for your code (scan, floors, invariants)',
+		'  3. .husky/* and .claude/settings.json call `npx harness hook …`; a lint-staged config in package.json is optional',
+		'  4. fill docs/contributing/architecture/primitives.yaml for your code (scan, unowned, floors, invariants)',
 		'  5. commit, including .harness/base/',
 	)
 	return lines.join('\n')

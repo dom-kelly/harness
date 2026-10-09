@@ -1,5 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import path from 'node:path'
 import { checkNodeVersion } from '../checks/node-version.ts'
 import { reportChecks, runChecks } from '../checks/run.ts'
 
@@ -49,39 +50,73 @@ function pushedFiles(root: string) {
 	return [...files]
 }
 
-function run(root: string, script: string) {
-	const result = spawnSync('npm', ['run', '--silent', script], {
-		cwd: root,
-		stdio: 'inherit',
-	})
-	if (result.status !== 0) process.exit(result.status ?? 1)
+function packageJson(root: string) {
+	const file = path.join(root, 'package.json')
+	if (!existsSync(file)) return {}
+	return JSON.parse(readFileSync(file, 'utf8')) as {
+		scripts?: Record<string, string>
+		'lint-staged'?: unknown
+	}
+}
+
+export function hasLintStaged(root: string) {
+	if (packageJson(root)['lint-staged']) return true
+	return [
+		'.lintstagedrc',
+		'.lintstagedrc.json',
+		'.lintstagedrc.yaml',
+		'.lintstagedrc.yml',
+		'.lintstagedrc.mjs',
+		'.lintstagedrc.js',
+		'lint-staged.config.js',
+		'lint-staged.config.mjs',
+	].some((f) => existsSync(path.join(root, f)))
+}
+
+function exec(root: string, command: string, args: Array<string>) {
+	const result = spawnSync(command, args, { cwd: root, stdio: 'inherit' })
+	return result.status ?? 1
+}
+
+/** Runs an npm script if the product has one; an adopted repo may not. */
+function runScript(root: string, hook: string, script: string) {
+	if (!packageJson(root).scripts?.[script]) {
+		console.log(`${hook}: no "${script}" script in package.json; skipped`)
+		return 0
+	}
+	return exec(root, 'npm', ['run', '--silent', script])
 }
 
 /** pre-commit / pre-push: node version first (the fix should be the first line
- *  printed), then the doc checks, then typecheck and the primitives map for
- *  non-docs changes, then tests on push. */
+ *  printed), lint-staged when configured, the doc checks, then typecheck and
+ *  the primitives map for non-docs changes, then tests on push. */
 export async function runGitHook(
 	root: string,
 	hook: 'pre-commit' | 'pre-push' | 'node-version',
-) {
+): Promise<number> {
 	const issue = checkNodeVersion(root)
 	if (issue) {
 		console.error(`${hook}: ${issue}`)
-		process.exit(1)
+		return 1
 	}
-	if (hook === 'node-version') return
+	if (hook === 'node-version') return 0
+	if (hook === 'pre-commit' && hasLintStaged(root)) {
+		const code = exec(root, 'npx', ['lint-staged'])
+		if (code) return code
+	}
 	const files =
 		hook === 'pre-commit'
 			? git(root, ['diff', '--cached', '--name-only', '--no-renames'])
 			: pushedFiles(root)
-	if (files && files.length === 0) return
+	if (files && files.length === 0) return 0
 	const docsOnly = files !== undefined && isDocsOnly(files)
 	const code = reportChecks(await runChecks(root, { docsOnly }))
-	if (code) process.exit(code)
+	if (code) return code
 	if (docsOnly) {
 		console.log(`${hook}: docs-only change; skipped typecheck and tests`)
-		return
+		return 0
 	}
-	run(root, 'typecheck')
-	if (hook === 'pre-push') run(root, 'test')
+	const typecheck = runScript(root, hook, 'typecheck')
+	if (typecheck) return typecheck
+	return hook === 'pre-push' ? runScript(root, hook, 'test') : 0
 }

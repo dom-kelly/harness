@@ -1,14 +1,23 @@
 import { execFileSync } from 'node:child_process'
+import { existsSync, readFileSync } from 'node:fs'
 import { readdir, readFile, realpath, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-/** The harness package itself: templates and scaffold live here. */
-export const packageRoot = path.resolve(
-	path.dirname(fileURLToPath(import.meta.url)),
-	'..',
-	'..',
-)
+/** The harness package itself: templates and scaffold live here. Found by
+ *  walking up from this module, so it works from src/ and from dist/src/. */
+export const packageRoot = (() => {
+	let dir = path.dirname(fileURLToPath(import.meta.url))
+	for (let i = 0; i < 6; i++) {
+		const file = path.join(dir, 'package.json')
+		if (existsSync(file)) {
+			const pkg = JSON.parse(readFileSync(file, 'utf8')) as { name?: string }
+			if (pkg.name === '@dom-kelly/harness') return dir
+		}
+		dir = path.dirname(dir)
+	}
+	throw new Error('harness: cannot find the package root')
+})()
 
 /** The repo the CLI acts on: the git toplevel of `from`, else `from` itself. */
 export function findRepoRoot(from = process.cwd()) {
