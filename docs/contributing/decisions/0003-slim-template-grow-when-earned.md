@@ -16,8 +16,9 @@ against installing them in advance.
 
 The template ships the loop: a short map, the contributor docs, one gate, the
 guard hooks, the shipping policy, four skills, and four checkers. Everything
-else is listed in [growth.md](../growth.md) with the trigger that justifies it,
-and is added only in a PR that names the trigger that fired.
+else is listed in [growth.md](../../../templates/docs/contributing/growth.md)
+with the trigger that justifies it, and is added only in a PR that names the
+trigger that fired.
 
 ## Consequences
 

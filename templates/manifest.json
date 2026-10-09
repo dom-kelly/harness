@@ -1,0 +1,40 @@
+{
+	"managed": [
+		"CLAUDE.md",
+		"AGENTS.md",
+		".claude/settings.json",
+		".claude/skills/new-product/SKILL.md",
+		".claude/skills/review-and-recommend/SKILL.md",
+		".claude/skills/ship-pr/SKILL.md",
+		".claude/skills/verify-app/SKILL.md",
+		".github/pull_request_template.md",
+		".github/workflows/validate.yml",
+		".husky/pre-commit",
+		".husky/pre-push",
+		".nvmrc",
+		".oxlintrc.json",
+		".prettierrc.json",
+		".prettierignore",
+		"docs/contributing/index.md",
+		"docs/contributing/harness-engineering.md",
+		"docs/contributing/growth.md",
+		"docs/contributing/shipping-policy.md",
+		"docs/contributing/testing-principles.md",
+		"docs/contributing/documentation.md",
+		"docs/contributing/code-style.md",
+		"docs/contributing/getting-started.md",
+		"docs/contributing/decisions/0000-template.md"
+	],
+	"owned": [
+		"SECURITY.md",
+		"docs/contributing/project-intent.md",
+		"docs/contributing/security.md",
+		"docs/contributing/external-services.md",
+		"docs/contributing/gotchas.md",
+		"docs/contributing/architecture/index.md",
+		"docs/contributing/architecture/primitives.yaml",
+		"docs/contributing/decisions/index.md",
+		"docs/contributing/decisions/0001-one-local-gate.md",
+		"docs/contributing/decisions/0002-no-default-orchestration.md"
+	]
+}

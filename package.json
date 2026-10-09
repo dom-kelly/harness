@@ -1,14 +1,12 @@
 {
-	"name": "harness-boilerplate",
-	"version": "0.0.0",
+	"name": "@dom-kelly/harness",
+	"version": "0.1.0",
 	"private": true,
 	"type": "module",
 	"engines": {
 		"node": ">=22.18"
 	},
 	"scripts": {
-		"dev": "node --watch src/server.ts",
-		"start": "node src/server.ts",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
 		"lint": "oxlint .",
@@ -16,14 +14,12 @@
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run",
 		"test:watch": "vitest",
-		"docs:check-decisions": "node tools/check-decisions.ts",
-		"docs:check-links": "node tools/check-doc-links.ts",
-		"skills:check": "node tools/check-skills.ts",
-		"primitives:check": "node tools/classify-primitives.ts --check",
-		"validate": "concurrently -g -n format,lint,types,test,decisions,links,skills,primitives,audit \"npm:format:check\" \"npm:lint\" \"npm:typecheck\" \"npm:test\" \"npm:docs:check-decisions\" \"npm:docs:check-links\" \"npm:skills:check\" \"npm:primitives:check\" \"npm:audit:prod\"",
+		"validate": "concurrently -g -n format,lint,types,test,check,audit \"npm:format:check\" \"npm:lint\" \"npm:typecheck\" \"npm:test\" \"npm:check\" \"npm:audit:prod\"",
 		"validate:fix": "npm run format && npm run lint:fix",
 		"prepare": "husky",
-		"audit:prod": "npm audit --omit=dev --audit-level=moderate"
+		"audit:prod": "npm audit --omit=dev --audit-level=moderate",
+		"harness": "node bin/harness.ts",
+		"check": "node bin/harness.ts check"
 	},
 	"lint-staged": {
 		"*.{ts,js,mjs}": [
@@ -40,7 +36,23 @@
 		"oxlint": "^1.14.0",
 		"prettier": "^3.6.0",
 		"typescript": "^5.9.0",
-		"vitest": "^3.2.0",
+		"vitest": "^3.2.0"
+	},
+	"description": "The agent harness as a CLI: scaffold, adopt, sync, check, classify, hooks.",
+	"bin": {
+		"harness": "bin/harness.ts"
+	},
+	"files": [
+		"bin",
+		"src",
+		"templates",
+		"scaffold"
+	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/dom-kelly/harness.git"
+	},
+	"dependencies": {
 		"yaml": "^2.8.0"
 	}
 }

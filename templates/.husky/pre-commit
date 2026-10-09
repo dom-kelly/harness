@@ -1,0 +1,3 @@
+npx harness hook node-version
+npx lint-staged
+npx harness hook pre-commit

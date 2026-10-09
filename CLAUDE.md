@@ -1,40 +1,26 @@
 # Agent index
 
-<!-- Replace this line with one sentence on what the product is. Keep the full
-intent in docs/contributing/project-intent.md. -->
+This repo is **the harness**: the CLI products call, the templates it writes
+into them, and the scaffold `harness new` starts from. It follows the same
+principles it ships; read them in
+[templates/docs/contributing/harness-engineering.md](./templates/docs/contributing/harness-engineering.md).
 
 `npm run validate` is the single authoritative local gate. CI runs the same
 checks, so green locally means green in CI.
 
-This file is a map, not an encyclopedia. Open the doc you need; do not read them
-all up front.
-
-- Project intent, scope, and non-goals:
-  [docs/contributing/project-intent.md](./docs/contributing/project-intent.md)
-- Decision records (steering veto list — open before proposing a new primitive,
-  surface, dependency, or storage home):
+- Layout, commands, how to change a template safely:
+  [docs/contributing/developing.md](./docs/contributing/developing.md)
+- Decision records (veto list — open before proposing a new command, template or
+  check):
   [docs/contributing/decisions/index.md](./docs/contributing/decisions/index.md)
-- How this harness works and how to grow it:
-  [harness-engineering.md](./docs/contributing/harness-engineering.md),
-  [growth.md](./docs/contributing/growth.md)
-- Shipping policy (risk levels; who may push, merge, deploy):
-  [shipping-policy.md](./docs/contributing/shipping-policy.md)
-- Security invariants and accepted risks (read before touching auth, data, or
-  secrets): [security.md](./docs/contributing/security.md)
-- Architecture and the primitives taxonomy:
-  [architecture/index.md](./docs/contributing/architecture/index.md)
-- Known traps — add a line when an agent gets something wrong:
-  [gotchas.md](./docs/contributing/gotchas.md)
-- Contributor docs map (setup, services, style, testing, docs principles):
-  [docs/contributing/index.md](./docs/contributing/index.md)
+- Known traps: [docs/contributing/gotchas.md](./docs/contributing/gotchas.md)
+- What products receive: [templates/manifest.json](./templates/manifest.json)
+  (managed = synced, owned = written once)
 
 ## Skills
 
-Workflows live in `.claude/skills/`. Use them by name:
-
-- `new-product` — turn a product idea into intent, primitives, decisions, and
-  the first vertical slices.
-- `review-and-recommend` — options with effort and one-way/two-way door labels,
-  a recommendation, then stop.
-- `ship-pr` — shepherd a change through validate, review, and CI to done.
-- `verify-app` — prove a change against the running app and record evidence.
+`.claude/skills/` is the same set products get (copies of `templates/`, kept
+identical by a test): use `review-and-recommend` before a design choice,
+`ship-pr` to take a change to done, `verify-app` here means `npm run validate`
+plus trying the CLI against a temp product
+(`node bin/harness.ts new .tmp/demo --no-install`).

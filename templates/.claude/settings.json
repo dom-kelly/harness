@@ -1,0 +1,30 @@
+{
+	"permissions": {
+		"allow": [
+			"Bash(npm run validate)",
+			"Bash(npm run validate:fix)",
+			"Bash(npm run lint)",
+			"Bash(npm run typecheck)",
+			"Bash(npm run test)",
+			"Bash(npx harness *)",
+			"Bash(npx vitest run *)",
+			"Bash(git diff *)",
+			"Bash(git status)",
+			"Bash(git log *)",
+			"Bash(gh issue list *)",
+			"Bash(gh pr view *)",
+			"Bash(gh pr checks *)"
+		],
+		"ask": ["Bash(git push *)", "Bash(gh pr merge *)"]
+	},
+	"hooks": {
+		"PreToolUse": [
+			{
+				"matcher": "Bash",
+				"hooks": [
+					{ "type": "command", "command": "npx harness hook guard-bash" }
+				]
+			}
+		]
+	}
+}
