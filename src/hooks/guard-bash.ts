@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { readConfig, type HarnessConfig } from '../lib/config.ts'
 import { findRepoRoot } from '../lib/repo.ts'
+import { evaluateMerge, prNumberFromCommand } from '../policy/merge-policy.ts'
 
 export type BlockedPattern = { regex: RegExp; reason: string }
 
@@ -54,14 +55,21 @@ export function findBlockedReason(
 		?.reason
 }
 
+const ghMerge = /\bgh\s+pr\s+merge\b/
+const apiMerge = /\bgh\s+api\b[^|;&]*\/merge\b/
+
 /** The decision for one hook input. A bad custom pattern blocks rather than
  *  silently disabling the guard: exit 1 would be treated as "not blocking". */
 export function guardDecision(
 	input: string,
 	config: HarnessConfig | undefined,
+	root?: string,
 ): string | undefined {
 	const parsed = JSON.parse(input) as { tool_input?: { command?: string } }
 	const command = parsed.tool_input?.command ?? ''
+	if (apiMerge.test(command)) {
+		return 'Merging through the API skips the shipping policy. Use `gh pr merge`.'
+	}
 	const extra: Array<BlockedPattern> = []
 	for (const { pattern, reason } of config?.guard?.blocked ?? []) {
 		try {
@@ -70,13 +78,27 @@ export function guardDecision(
 			return `harness.json guard.blocked has an invalid pattern ${JSON.stringify(pattern)}: ${error instanceof Error ? error.message : String(error)}. Fix it before running commands.`
 		}
 	}
-	return findBlockedReason(command, extra)
+	const blocked = findBlockedReason(command, extra)
+	if (blocked) return blocked
+	// Merging to main is gated by the policy (kody's tiers), not by a pattern.
+	if (
+		root &&
+		ghMerge.test(command) &&
+		(config?.policy?.enforceOnMerge ?? true)
+	) {
+		const verdict = evaluateMerge(root, config, prNumberFromCommand(command))
+		for (const line of verdict.lines) console.error(line)
+		if (!verdict.allowed) return verdict.message
+		console.error(verdict.message)
+	}
+	return undefined
 }
 
 /** Claude Code PreToolUse hook for Bash: exit 2 refuses the command and shows
  *  the reason to the agent. */
 export function runGuardBash(input = readFileSync(0, 'utf8')) {
-	const reason = guardDecision(input, readConfig(findRepoRoot()))
+	const root = findRepoRoot()
+	const reason = guardDecision(input, readConfig(root), root)
 	if (reason) {
 		console.error(`Blocked by the harness: ${reason}`)
 		return 2

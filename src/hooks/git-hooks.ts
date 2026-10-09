@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { checkNodeVersion } from '../checks/node-version.ts'
 import { reportChecks, runChecks } from '../checks/run.ts'
+import { runNpmScript } from './claude-hooks.ts'
 
 const docsOnlyPattern =
 	/^(docs\/.*\.md$|\.claude\/.*\.md$|\.agents\/.*\.md$|[^/]+\.md$)/
@@ -84,7 +85,9 @@ function runScript(root: string, hook: string, script: string) {
 		console.log(`${hook}: no "${script}" script in package.json; skipped`)
 		return 0
 	}
-	return exec(root, 'npm', ['run', '--silent', script])
+	const { status, output } = runNpmScript(root, script)
+	if (status !== 0) process.stderr.write(output)
+	return status
 }
 
 /** pre-commit / pre-push: node version first (the fix should be the first line

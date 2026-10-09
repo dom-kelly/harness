@@ -10,9 +10,10 @@ description: >
 # Ship PR
 
 Authority comes from
-[shipping-policy.md](../../../docs/contributing/shipping-policy.md). Never
-exceed it. When the policy says "ask", stop with everything ready and give the
-exact command for the owner to run.
+[shipping-policy.md](../../../docs/contributing/shipping-policy.md) and is
+enforced by `npx harness policy`. Never work around it. When the policy parks a
+PR for the owner, stop with everything ready, say which rule applied, and link
+the PR.
 
 ## Loop
 
@@ -35,8 +36,12 @@ exact command for the owner to run.
    later gate, say so in the PR under a `Cleanup:` line with a falsifiable
    "ready when"; a `TODO` in code is not a tracker.
 8. **Ship within policy.** Wait on CI for the current head SHA only; ignore
-   results for superseded commits. If the branch becomes conflicting after
-   green, rebase once and re-run; if still conflicting, stop and report.
+   results for superseded commits. Then
+   `gh pr merge <n> --squash --delete-branch`: the guard runs
+   `npx harness policy <n>` and either merges or prints what it is waiting for
+   (a reviewer, an unanswered finding, or the owner). Act on that; never retry
+   with other flags or the API. If the branch becomes conflicting after green,
+   rebase once and re-run; if still conflicting, stop and report.
 9. **After merge/deploy (if allowed):** confirm `/health` reports the merge sha
    on the deployed origin.
 

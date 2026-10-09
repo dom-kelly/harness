@@ -1,40 +1,70 @@
 # Shipping policy
 
-The owner sets this policy; agents follow it and never widen it on their own.
-Edit the **Authority** table to change what agents may do.
+Merging to `main` is the moment a change reaches everyone (and, in a deployed
+product, production). The owner sets this policy in `harness.json` → `policy`;
+`npx harness policy <pr>` applies it and the guard hook runs it on every
+`gh pr merge`, so an agent cannot merge past it. Agents never widen it on their
+own.
 
-## Risk levels
+## Risk
 
-Agents assess risk from the diff and the primitives it touches
-(`npx harness classify`), then judge `composes` vs `extends` themselves.
+Risk is the highest of three things:
 
-| Risk       | Typical shape                                                                |
-| ---------- | ---------------------------------------------------------------------------- |
-| **Low**    | `composes`: wiring, copy, docs, tests, isolated fixes                        |
-| **Medium** | `extends`: changes a primitive's behavior or contract; several files         |
-| **High**   | `adds` a primitive, migrations, auth, money, data deletion, any one-way door |
+1. **What the PR declares** in its **Change:** line — `composes` (wires existing
+   primitives) = low, `extends` (changes a primitive's behaviour or shape) =
+   medium, `adds` (a new primitive) = high.
+2. **The floor** of every primitive the diff touches
+   ([primitives.yaml](./architecture/primitives.yaml); `npx harness classify`
+   lists them). A renamed file counts under both its paths. An unmapped file is
+   high.
+3. **The Door** — `one-way` is always high.
 
-A diff that touches a primitive's `invariants` is at least medium.
+A diff that touches a primitive's `invariants` says how each one still holds.
 
-## Authority
+## Tiers (kody's)
 
-| Action                | Low        | Medium     | High       |
-| --------------------- | ---------- | ---------- | ---------- |
-| Local commit          | when asked | when asked | when asked |
-| Push branch / open PR | ask        | ask        | ask        |
-| Merge                 | ask        | ask        | owner only |
-| Deploy                | ask        | ask        | owner only |
+| Risk       | Before merging                                                   | Who merges (default)   |
+| ---------- | ---------------------------------------------------------------- | ---------------------- |
+| **Low**    | The gate check is green                                          | agent                  |
+| **Medium** | + every `reviewers.gate` check passed and its findings addressed | agent                  |
+| **High**   | + every `reviewers.required` login has reviewed                  | owner (agent parks it) |
 
-"Ask" means stop with everything ready and say exactly which command the owner
-should run. Raise authority per row as trust in the harness grows (for example,
-"Low: merge when CI green").
+`policy.authority` changes who merges per tier. A repo whose merges deploy
+nothing can let agents merge high risk; a repo whose merges deploy to production
+should keep the owner there.
 
-## Review requirements
+Always: not a draft, targets `main`, no test file deleted, no other check red or
+pending (except `reviewers.ignoreChecks`). `gh pr merge --admin|--auto` and
+merging through the API are refused outright.
 
-- **Low:** green `validate`.
-- **Medium:** green `validate`, independent review (the AI reviewers installed
-  on the repo plus one fresh-context sub-agent), valid feedback addressed, and
-  `verify-app` evidence against the running app.
-- **High:** all of the above plus a written rollback plan in the PR. If the
-  change is a one-way door with no cheap rollback, say so; that is the trigger
-  for feature flags in [growth.md](./growth.md).
+## Review findings
+
+A thread opened by a login in `reviewers.findingsFrom` counts as addressed when
+it is resolved, or when a reply says `Fixed in <sha>: <what changed>` or
+`wontfix: <reason>`. Reviewers not listed are read and handled on merit but do
+not block.
+
+A finding that has come up before gets encoded, not just fixed: see the
+enforcement ladder in [harness-engineering.md](./harness-engineering.md).
+
+## Configuration
+
+```json
+"policy": {
+	"gate": "validate",
+	"authority": { "low": "agent", "medium": "agent", "high": "owner" },
+	"reviewers": {
+		"gate": [{ "check": "Cursor Bugbot", "login": "cursor" }],
+		"required": ["coderabbitai", "devin-ai-integration"],
+		"ignoreChecks": ["CodeRabbit"]
+	}
+}
+```
+
+With no `reviewers`, medium and high need only the gate; add reviewers as the
+GitHub Apps are installed ([external-services.md](./external-services.md)).
+
+## Asking
+
+When the policy parks a PR, the agent stops with everything ready, says which
+rule applied, and links the PR. The owner reviews and merges.

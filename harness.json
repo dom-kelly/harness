@@ -1,7 +1,17 @@
 {
 	"harness": "0.1.0",
-	"product": { "name": "harness" },
+	"product": {
+		"name": "harness"
+	},
 	"checks": {
 		"ignoreLinksIn": [".claude/skills/"]
+	},
+	"policy": {
+		"gate": "validate",
+		"authority": {
+			"low": "agent",
+			"medium": "agent",
+			"high": "agent"
+		}
 	}
 }

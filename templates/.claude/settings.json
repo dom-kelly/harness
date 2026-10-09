@@ -22,7 +22,32 @@
 			{
 				"matcher": "Bash",
 				"hooks": [
-					{ "type": "command", "command": "npx harness hook guard-bash" }
+					{
+						"type": "command",
+						"command": "npx harness hook guard-bash"
+					}
+				]
+			}
+		],
+		"PostToolUse": [
+			{
+				"matcher": "Edit|Write|MultiEdit",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "npx harness hook typecheck"
+					}
+				]
+			}
+		],
+		"Stop": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "npx harness hook validate-on-stop",
+						"timeout": 300
+					}
 				]
 			}
 		]

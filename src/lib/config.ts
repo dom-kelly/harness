@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import type { PolicyConfig } from '../policy/merge-policy.ts'
 import { packageRoot } from './repo.ts'
 
 export const configFile = 'harness.json'
@@ -24,6 +25,8 @@ export type HarnessConfig = {
 		/** Extra Bash patterns the guard hook refuses (regex source + reason). */
 		blocked?: Array<{ pattern: string; reason: string }>
 	}
+	/** Who may merge at each risk tier and which reviewers must have spoken. */
+	policy?: PolicyConfig
 }
 
 export const packageVersion: string = JSON.parse(

@@ -12,7 +12,12 @@ import { parseArgs } from '../src/cli/args.ts'
 import { doctor, formatDoctor } from '../src/cli/doctor.ts'
 import { createProduct } from '../src/cli/new.ts'
 import { runGitHook } from '../src/hooks/git-hooks.ts'
+import {
+	runGateOnStopHook,
+	runTypecheckHook,
+} from '../src/hooks/claude-hooks.ts'
 import { runGuardBash } from '../src/hooks/guard-bash.ts'
+import { evaluateMerge } from '../src/policy/merge-policy.ts'
 import { packageVersion, readConfig } from '../src/lib/config.ts'
 import { findRepoRoot } from '../src/lib/repo.ts'
 import {
@@ -29,7 +34,8 @@ const help = `harness ${packageVersion} — the agent harness, as a CLI
   harness check [--docs]          decisions, links, skills, primitives map, repo rules
   harness classify [--base ref | --stdin] [--json]   primitives a change touches
   harness doctor                  what a fresh session needs to know
-  harness hook <guard-bash | pre-commit | pre-push | node-version>
+  harness policy [pr]             may an agent merge this PR? (risk tiers, reviewers, authority)
+  harness hook <guard-bash | typecheck | validate-on-stop | pre-commit | pre-push | node-version>
 `
 
 async function main(): Promise<number> {
@@ -93,9 +99,17 @@ async function main(): Promise<number> {
 			console.log(formatDoctor(items))
 			return items.every((i) => i.ok) ? 0 : 1
 		}
+		case 'policy': {
+			const verdict = evaluateMerge(root, readConfig(root), positionals[0])
+			for (const line of verdict.lines) console.error(line)
+			console.error(verdict.message)
+			return verdict.allowed ? 0 : 2
+		}
 		case 'hook': {
 			const hook = positionals[0]
 			if (hook === 'guard-bash') return runGuardBash()
+			if (hook === 'typecheck') return runTypecheckHook(root)
+			if (hook === 'validate-on-stop') return runGateOnStopHook(root)
 			if (
 				hook === 'pre-commit' ||
 				hook === 'pre-push' ||
