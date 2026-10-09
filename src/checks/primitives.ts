@@ -39,9 +39,11 @@ export function loadMap(root: string): PrimitivesMap {
 }
 
 function matches(file: string, root: string) {
-	const prefix = root.endsWith('/') ? root : `${root}/`
-	return file === root || file.startsWith(prefix)
+	const clean = root.replace(/\/+$/, '')
+	return file === clean || file.startsWith(`${clean}/`)
 }
+
+const rootLength = (root: string) => root.replace(/\/+$/, '').length
 
 export type Classification = {
 	touched: Map<string, Array<string>>
@@ -65,15 +67,13 @@ export function classifyFiles(
 		}
 		const unownedLength = Math.max(
 			-1,
-			...(map.unowned ?? [])
-				.filter((p) => matches(file, p))
-				.map((p) => p.length),
+			...(map.unowned ?? []).filter((p) => matches(file, p)).map(rootLength),
 		)
 		let best: { id: string; length: number } | undefined
 		for (const primitive of map.primitives) {
 			for (const root of primitive.code) {
-				if (matches(file, root) && (!best || root.length > best.length)) {
-					best = { id: primitive.id, length: root.length }
+				if (matches(file, root) && (!best || rootLength(root) > best.length)) {
+					best = { id: primitive.id, length: rootLength(root) }
 				}
 			}
 		}

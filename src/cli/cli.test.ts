@@ -10,6 +10,7 @@ import {
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, test } from 'vitest'
+import { checkDocLinks } from '../checks/doc-links.ts'
 import { runChecks } from '../checks/run.ts'
 import { readConfig } from '../lib/config.ts'
 import { packageRoot } from '../lib/repo.ts'
@@ -20,6 +21,7 @@ import {
 	syncTemplates,
 } from '../lib/templates.ts'
 import { adoptRepo, patchPackageJson } from './adopt.ts'
+import { parseArgs } from './args.ts'
 import { createProduct } from './new.ts'
 
 async function tmp(prefix: string) {
@@ -193,4 +195,67 @@ test('three-way merge keeps both sides when they touch different lines', async (
 		'0\n1\n2\n3\n',
 	)
 	expect(merged).toEqual({ content: '0\n1\n2\n3\nmine\n', conflicts: false })
+})
+
+test('arguments: options take the next token, flags do not, the rest are positionals', () => {
+	expect(parseArgs(['new', '--name', 'foo', './dir', '--no-install'])).toEqual({
+		command: 'new',
+		positionals: ['./dir'],
+		flags: new Set(['--no-install']),
+		options: new Map([['--name', 'foo']]),
+	})
+	expect(() => parseArgs(['new', '--name'])).toThrow(/needs a value/)
+	expect(parseArgs([]).command).toBeUndefined()
+})
+
+test('sync reports a managed file with no recorded base instead of skipping it', async () => {
+	const dir = await tmp('nobase')
+	const root = path.join(dir, 'repo')
+	const templates = path.join(dir, 'templates')
+	try {
+		await mkdir(root)
+		await fakeTemplates(templates, { 'managed/a.md': 'v2\n' })
+		await writeFile(path.join(root, 'managed/a.md'), 'v1\n').catch(async () => {
+			await mkdir(path.join(root, 'managed'))
+			await writeFile(path.join(root, 'managed/a.md'), 'v1\n')
+		})
+		const report = await syncTemplates(
+			root,
+			{ name: 'x' },
+			{ templatesDir: templates },
+		)
+		expect(report.missingBase).toEqual(['managed/a.md'])
+		expect(await readFile(path.join(root, 'managed/a.md'), 'utf8')).toBe('v1\n')
+	} finally {
+		await rm(dir, { recursive: true, force: true })
+	}
+})
+
+test('adopt works in a repo with no package.json and keeps 2-space indentation', async () => {
+	const root = await tmp('adopt-bare')
+	try {
+		const result = adoptRepo(root, { name: 'bare' })
+		expect(result.name).toBe('bare')
+		const pkg = JSON.parse(
+			await readFile(path.join(root, 'package.json'), 'utf8'),
+		)
+		expect(pkg.scripts.prepare).toBe('husky')
+		expect(pkg.devDependencies.husky).toBeDefined()
+		const spaced = patchPackageJson('{\n  "name": "x"\n}\n')
+		expect(spaced.source.startsWith('{\n  "name"')).toBe(true)
+	} finally {
+		await rm(root, { recursive: true, force: true })
+	}
+})
+
+test('doc link check can ignore mirrored paths', async () => {
+	const root = await tmp('links')
+	try {
+		await mkdir(path.join(root, 'mirror'))
+		await writeFile(path.join(root, 'mirror/a.md'), '[x](./missing.md)')
+		expect((await checkDocLinks(root)).issues).toHaveLength(1)
+		expect((await checkDocLinks(root, ['mirror/'])).issues).toEqual([])
+	} finally {
+		await rm(root, { recursive: true, force: true })
+	}
 })

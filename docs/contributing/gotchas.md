@@ -12,6 +12,12 @@ or a test, make it one and delete the line.
 - A review bot's status badge can stay "in progress" after its review is posted,
   and it pauses itself after a run of commits. Read the PR timeline for the
   review on the current head SHA, not the badge.
+- `npm link` hides packaging bugs: a linked package runs from its real path, so
+  `.ts` entry points work there and fail from `node_modules`
+  (`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`). Trust the pack-and-install
+  lane, not a linked run.
+- A symlink in the repo breaks `git stash` (used by lint-staged) with "beyond a
+  symbolic link"; keep copies and a test that they match.
 - kody is licensed FSL-1.1-ALv2 (GitHub shows "Other"), which permits
   non-competing use. Kent's Kody-platform packages carry no licence of their
   own.

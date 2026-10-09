@@ -8,8 +8,8 @@ the lightest kind of test that can catch the bug.
 - Test behavior through the public surface (an HTTP route, an exported
   function), not implementation details.
 - A bug fix starts with a failing test that reproduces it.
-- Every checker the product adds in `tools/` has a unit test for its pure logic;
-  the harness's own checkers are tested in the harness.
+- A checker you add to `validate` has a unit test for its pure logic; the
+  harness's own checkers are tested in the harness.
 - User-visible changes also get `verify-app` evidence against the running app.
 
 ## How tests are written

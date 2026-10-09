@@ -39,6 +39,17 @@ links point at product docs, so `harness.json` lists them under
    product fails here.
 4. In a product, `npx harness sync` (or `--check` in CI to see what is behind).
 
+## Build output
+
+Node refuses to strip TypeScript types for files under `node_modules`, so the
+package ships compiled JavaScript: `npm install` here (and a product's install
+from git) runs `scripts/prepare.mjs`, which builds `dist/`. Run the CLI from
+source while developing (`node bin/harness.ts …`); `dist/` is gitignored and
+rebuilt by `npm run build`. The e2e lane (`npm run test:e2e`) packs the package,
+scaffolds a product, installs the tarball into it and runs the product's own
+`validate`; it is the only check that exercises the package as installed,
+because `npm link` resolves outside `node_modules` and hides the restriction.
+
 ## Trying it against a real product
 
 ```bash
@@ -47,4 +58,6 @@ cd ../some-product && npm link @dom-kelly/harness
 npx harness doctor
 ```
 
-Unlink with `npm unlink @dom-kelly/harness && npm install` when done.
+Unlink with `npm unlink @dom-kelly/harness && npm install` when done. A linked
+package runs from source, so it does not prove the packaged install; the e2e
+lane does.

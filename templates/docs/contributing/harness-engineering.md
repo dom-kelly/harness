@@ -62,18 +62,15 @@ Rule of thumb: if a reviewer makes the same comment twice, encode it.
 
 ## Checkers in `validate`
 
-| Check                  | Catches                                                    |
-| ---------------------- | ---------------------------------------------------------- |
-| `format:check`, `lint` | Formatting and correctness lint                            |
-| `typecheck`, `test`    | Types and behavior                                         |
-| `docs:check-decisions` | Duplicate or unindexed decision record numbers             |
-| `docs:check-links`     | Broken relative links in markdown                          |
-| `skills:check`         | Skill frontmatter, description quality, and length         |
-| `primitives:check`     | Unowned source files and stale paths in the primitives map |
-| `audit:prod`           | Production dependency vulnerabilities (moderate and above) |
+| Lane                   | Catches                                                                                      |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| `format:check`, `lint` | Formatting and correctness lint                                                              |
+| `typecheck`, `test`    | Types and behavior                                                                           |
+| `npx harness check`    | Decision record numbers, broken doc links, skill frontmatter, the primitives map, repo rules |
+| `audit:prod`           | Production dependency vulnerabilities (moderate and above)                                   |
 
-Product-specific checkers go in `tools/` with a test, wired into `validate`; the
-shared ones come from `npx harness check`. Candidates that have not yet earned a
+Add a product-specific checker as a script with a test, wired into `validate`;
+the shared ones come from the harness. Candidates that have not yet earned a
 place are in [growth.md](./growth.md).
 
 ## Agent guardrails

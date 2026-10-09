@@ -1,6 +1,6 @@
 # Getting started
 
-Requires Node 22.18 or later (TypeScript runs natively; tools are plain `.ts`).
+Requires Node 22.18 or later (TypeScript runs natively, no build step).
 
 ```bash
 npm install          # also installs git hooks via husky

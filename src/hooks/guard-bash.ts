@@ -1,28 +1,41 @@
 import { readFileSync } from 'node:fs'
-import { readConfig } from '../lib/config.ts'
+import { readConfig, type HarnessConfig } from '../lib/config.ts'
 import { findRepoRoot } from '../lib/repo.ts'
 
 export type BlockedPattern = { regex: RegExp; reason: string }
 
+// `git`, with any -C/-c/--flag options, then `push`, then anything up to a
+// command separator.
+const gitPush = String.raw`\bgit\b(?:\s+-[Cc]\s*\S+|\s+--\S+)*\s+push\b[^|;&]*`
+
 /** Always refused, in any product. */
 export const defaultBlocked: ReadonlyArray<BlockedPattern> = [
 	{
-		regex: /\bgit\s+push\b[^|;&]*\s(?:--force(?:-with-lease)?|-f)\b/,
+		regex: new RegExp(
+			`${gitPush}\\s(?:--force(?:-with-lease)?|-[a-zA-Z]*f[a-zA-Z]*)\\b`,
+		),
 		reason:
 			'Force-pushing is never allowed. Rebase onto the latest base and push normally, or stop and report.',
 	},
 	{
-		regex: /\bgit\s+push\b[^|;&]*[\s:](?:main|master)\b(?!\S)/,
+		regex: new RegExp(
+			String.raw`${gitPush}[\s:+'"](?:refs/heads/)?(?:main|master)(?![\w./-])`,
+		),
 		reason:
 			'Pushing straight to main bypasses the PR, CI and the shipping policy. Push a branch and open a PR.',
 	},
 	{
-		regex: /\bgit\s+(?:commit|push)\b[^|;&]*\s--no-verify\b/,
+		regex: /\bgit\s+commit\b[^|;&]*\s(?:--no-verify|-n)\b/,
 		reason:
 			'Skipping git hooks hides failures. Fix what the hook reports; if the hook is wrong, fix the hook.',
 	},
 	{
-		regex: /\bgit\s+(?:reset\s+--hard|clean\s+-[a-z]*f)/,
+		regex: new RegExp(`${gitPush}\\s--no-verify\\b`),
+		reason:
+			'Skipping git hooks hides failures. Fix what the hook reports; if the hook is wrong, fix the hook.',
+	},
+	{
+		regex: /\bgit\s+(?:reset\s+--hard|clean\b[^|;&]*\s(?:-[a-zA-Z]*f|--force))/,
 		reason:
 			'Destructive git commands discard work. Ask the owner first, naming exactly what would be lost.',
 	},
@@ -41,17 +54,32 @@ export function findBlockedReason(
 		?.reason
 }
 
+/** The decision for one hook input. A bad custom pattern blocks rather than
+ *  silently disabling the guard: exit 1 would be treated as "not blocking". */
+export function guardDecision(
+	input: string,
+	config: HarnessConfig | undefined,
+): string | undefined {
+	const parsed = JSON.parse(input) as { tool_input?: { command?: string } }
+	const command = parsed.tool_input?.command ?? ''
+	const extra: Array<BlockedPattern> = []
+	for (const { pattern, reason } of config?.guard?.blocked ?? []) {
+		try {
+			extra.push({ regex: new RegExp(pattern), reason })
+		} catch (error) {
+			return `harness.json guard.blocked has an invalid pattern ${JSON.stringify(pattern)}: ${error instanceof Error ? error.message : String(error)}. Fix it before running commands.`
+		}
+	}
+	return findBlockedReason(command, extra)
+}
+
 /** Claude Code PreToolUse hook for Bash: exit 2 refuses the command and shows
  *  the reason to the agent. */
 export function runGuardBash(input = readFileSync(0, 'utf8')) {
-	const parsed = JSON.parse(input) as { tool_input?: { command?: string } }
-	const command = parsed.tool_input?.command ?? ''
-	const extra = (readConfig(findRepoRoot())?.guard?.blocked ?? []).map(
-		({ pattern, reason }) => ({ regex: new RegExp(pattern), reason }),
-	)
-	const reason = findBlockedReason(command, extra)
+	const reason = guardDecision(input, readConfig(findRepoRoot()))
 	if (reason) {
 		console.error(`Blocked by the harness: ${reason}`)
-		process.exit(2)
+		return 2
 	}
+	return 0
 }

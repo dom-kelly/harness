@@ -85,6 +85,8 @@ export function applyTemplates(
 }
 
 export type SyncReport = {
+	/** Managed files with no .harness/base copy: run `harness adopt` to record one. */
+	missingBase: Array<string>
 	created: Array<string>
 	updated: Array<string>
 	merged: Array<string>
@@ -157,6 +159,7 @@ export async function syncTemplates(
 ): Promise<SyncReport> {
 	const manifest = loadManifest(templatesDir)
 	const report: SyncReport = {
+		missingBase: [],
 		created: [],
 		updated: [],
 		merged: [],
@@ -175,12 +178,16 @@ export async function syncTemplates(
 			vars,
 		)
 		const ours = readIfExists(path.join(root, rel))
-		const base = readIfExists(path.join(root, baseDir, rel)) ?? theirs
+		const base = readIfExists(path.join(root, baseDir, rel))
+		if (ours !== undefined && base === undefined && ours !== theirs) {
+			report.missingBase.push(rel)
+			continue
+		}
 		if (ours === undefined) {
 			write(rel, theirs)
 			writeBase(rel, theirs)
 			report.created.push(rel)
-		} else if (theirs === base || ours === theirs) {
+		} else if (theirs === base || ours === theirs || base === undefined) {
 			writeBase(rel, theirs)
 			report.unchanged.push(rel)
 		} else if (ours === base) {
@@ -188,7 +195,7 @@ export async function syncTemplates(
 			writeBase(rel, theirs)
 			report.updated.push(rel)
 		} else {
-			const merged = await mergeThreeWay(ours, base, theirs)
+			const merged = await mergeThreeWay(ours, base!, theirs)
 			write(rel, merged.content)
 			writeBase(rel, theirs)
 			;(merged.conflicts ? report.conflicts : report.merged).push(rel)
@@ -216,6 +223,10 @@ export function formatSyncReport(report: SyncReport, check: boolean) {
 	section(`updated (no local edits)`, report.updated)
 	section(`merged (local edits kept)`, report.merged)
 	section(`CONFLICTS (resolve the markers)`, report.conflicts)
+	section(
+		`NO BASE RECORDED (run \`harness adopt\` to record one, then sync again)`,
+		report.missingBase,
+	)
 	if (lines.length === 0) return 'sync: everything is up to date'
 	return `sync: ${lines.length} group(s) of files ${verb} changed\n${lines.map((l) => `  ${l}`).join('\n')}`
 }

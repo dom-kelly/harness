@@ -22,6 +22,11 @@ export function createProduct(
 	{ name = path.basename(path.resolve(dir)), install = true, git = true } = {},
 ) {
 	const root = path.resolve(dir)
+	if (!/^(@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/.test(name)) {
+		throw new Error(
+			`"${name}" is not a valid npm package name; pass --name <lowercase-kebab>`,
+		)
+	}
 	if (existsSync(root) && readdirSync(root).length > 0) {
 		throw new Error(`${root} exists and is not empty`)
 	}

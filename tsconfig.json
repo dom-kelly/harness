@@ -10,7 +10,14 @@
 		"erasableSyntaxOnly": true,
 		"noUncheckedIndexedAccess": true,
 		"skipLibCheck": true,
-		"types": ["node"]
+		"types": ["node"],
+		"rewriteRelativeImportExtensions": true
 	},
-	"include": ["src", "bin", "vitest.config.ts"]
+	"include": [
+		"src",
+		"bin",
+		"scripts",
+		"vitest.config.ts",
+		"vitest.e2e.config.ts"
+	]
 }
