@@ -72,7 +72,7 @@ test('adopt keeps existing files and only adds to package.json', async () => {
 		expect(pkg.scripts.test).toBe('vitest run')
 		expect(pkg.scripts.harness).toBe('harness')
 		expect(pkg.devDependencies['@dom-kelly/harness']).toBe(
-			'github:dom-kelly/harness',
+			'git+https://github.com/dom-kelly/harness.git',
 		)
 		expect(patchPackageJson(JSON.stringify(pkg)).added).toEqual([])
 	} finally {

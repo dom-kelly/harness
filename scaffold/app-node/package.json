@@ -30,7 +30,7 @@
 		"*": "prettier --write --ignore-unknown"
 	},
 	"devDependencies": {
-		"@dom-kelly/harness": "github:dom-kelly/harness",
+		"@dom-kelly/harness": "git+https://github.com/dom-kelly/harness.git",
 		"@types/node": "^22.18.0",
 		"concurrently": "^9.2.0",
 		"husky": "^9.1.7",

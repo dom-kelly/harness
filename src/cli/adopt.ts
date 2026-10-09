@@ -4,7 +4,7 @@ import { packageVersion, readConfig, writeConfig } from '../lib/config.ts'
 import { applyTemplates, type ApplyReport } from '../lib/templates.ts'
 
 export const dependencyName = '@dom-kelly/harness'
-export const dependencySpec = 'github:dom-kelly/harness'
+export const dependencySpec = 'git+https://github.com/dom-kelly/harness.git'
 
 /** What the templates' hooks and scripts expect a product to have. */
 export const expectedDevDependencies = {

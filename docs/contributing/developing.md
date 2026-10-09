@@ -10,16 +10,17 @@ node bin/harness.ts --help
 
 ## Layout
 
-| Path                 | What                                                                         |
-| -------------------- | ---------------------------------------------------------------------------- |
-| `bin/harness.ts`     | CLI entry: new, adopt, sync, check, classify, doctor, hook                   |
-| `src/checks/`        | Checkers behind `harness check` and the git hooks                            |
-| `src/hooks/`         | The Bash guard (Claude Code PreToolUse) and the git hook runner              |
-| `src/lib/`           | Repo discovery, `harness.json`, template apply and three-way sync            |
-| `src/cli/`           | new, adopt, doctor                                                           |
-| `templates/`         | Files written into products; `manifest.json` says which are managed vs owned |
-| `scaffold/app-node/` | The placeholder app `harness new` starts from                                |
-| `docs/contributing/` | These docs, about the harness itself                                         |
+| Path                 | What                                                                           |
+| -------------------- | ------------------------------------------------------------------------------ |
+| `bin/harness.ts`     | CLI entry: new, adopt, sync, check, classify, doctor, hook                     |
+| `src/checks/`        | Checkers behind `harness check` and the git hooks                              |
+| `src/hooks/`         | The Bash guard, the typecheck and gate-on-stop hooks, the git hook runner      |
+| `src/policy/`        | `harness policy`: risk tiers, reviewers, authority; tested against a stub `gh` |
+| `src/lib/`           | Repo discovery, `harness.json`, template apply and three-way sync              |
+| `src/cli/`           | new, adopt, doctor                                                             |
+| `templates/`         | Files written into products; `manifest.json` says which are managed vs owned   |
+| `scaffold/app-node/` | The placeholder app `harness new` starts from                                  |
+| `docs/contributing/` | These docs, about the harness itself                                           |
 
 The root `.claude/skills` holds copies of `templates/.claude/skills`: the
 harness uses the same skills it ships. A test fails if the copies drift, so edit

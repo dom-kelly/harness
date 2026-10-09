@@ -52,6 +52,17 @@ primitives:
     docs:
       - docs/contributing/developing.md
 
+  - id: policy
+    group: engine
+    name: Merge policy
+    summary:
+      Risk tiers, reviewer gates and per-repo authority behind `harness policy`.
+    floor: high
+    code:
+      - src/policy
+    docs:
+      - docs/contributing/decisions/0005-authority-per-repo.md
+
   - id: templating
     group: engine
     name: Templates engine

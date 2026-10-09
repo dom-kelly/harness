@@ -10,7 +10,9 @@ type Item = { label: string; ok: boolean; fix: string }
 export function doctor(root: string): Array<Item> {
 	const config = readConfig(root)
 	const nodeIssue = checkNodeVersion(root)
-	const gh = spawnSync('gh', ['auth', 'status'], { encoding: 'utf8' })
+	const gh = spawnSync('gh', ['api', 'user', '--jq', '.login'], {
+		encoding: 'utf8',
+	})
 	return [
 		{
 			label: `node matches .nvmrc (have ${process.versions.node})`,
@@ -35,7 +37,10 @@ export function doctor(root: string): Array<Item> {
 			fix: 'npm run prepare',
 		},
 		{
-			label: 'gh authenticated',
+			label:
+				gh.status === 0
+					? `gh authenticated as ${gh.stdout.trim()}`
+					: 'gh authenticated',
 			ok: gh.status === 0,
 			fix: 'gh auth login',
 		},

@@ -13,8 +13,7 @@
 			"Bash(git log *)",
 			"Bash(gh pr view *)",
 			"Bash(gh pr checks *)"
-		],
-		"ask": ["Bash(git push *)", "Bash(gh pr merge *)"]
+		]
 	},
 	"hooks": {
 		"PreToolUse": [
@@ -24,6 +23,28 @@
 					{
 						"type": "command",
 						"command": "node --disable-warning=ExperimentalWarning \"$CLAUDE_PROJECT_DIR/bin/harness.ts\" hook guard-bash"
+					}
+				]
+			}
+		],
+		"PostToolUse": [
+			{
+				"matcher": "Edit|Write|MultiEdit",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "node --disable-warning=ExperimentalWarning \"$CLAUDE_PROJECT_DIR/bin/harness.ts\" hook typecheck"
+					}
+				]
+			}
+		],
+		"Stop": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "node --disable-warning=ExperimentalWarning \"$CLAUDE_PROJECT_DIR/bin/harness.ts\" hook validate-on-stop",
+						"timeout": 300
 					}
 				]
 			}
