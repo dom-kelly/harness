@@ -242,3 +242,38 @@ test('guard decision reads hook input and blocks on a broken custom pattern', ()
 		}),
 	).toMatch(/invalid pattern/)
 })
+
+const cmd = (command: string) => JSON.stringify({ tool_input: { command } })
+
+test('guard refuses API and cross-repo merges, and blocks when the policy cannot run', () => {
+	expect(
+		guardDecision(cmd('gh api -X PUT repos/o/r/pulls/7/merge'), undefined),
+	).toMatch(/API/)
+	expect(
+		guardDecision(
+			cmd("gh api graphql -f query='mutation{mergePullRequest(input:{})}'"),
+			undefined,
+		),
+	).toMatch(/API/)
+	expect(
+		guardDecision(cmd('gh pr merge 7 --repo other/repo'), undefined),
+	).toMatch(/another repo/)
+	expect(
+		guardDecision(
+			cmd('gh pr merge 7 --squash'),
+			undefined,
+			'/nonexistent-root-for-policy',
+		),
+	).toMatch(/Merge refused/)
+	expect(
+		guardDecision(
+			cmd('gh pr merge 7'),
+			{
+				harness: '0',
+				product: { name: 'x' },
+				policy: { enforceOnMerge: false },
+			},
+			'/nonexistent',
+		),
+	).toBeUndefined()
+})

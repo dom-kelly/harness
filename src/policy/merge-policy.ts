@@ -1,16 +1,20 @@
 import { execFileSync } from 'node:child_process'
+import { existsSync, readFileSync } from 'node:fs'
+import path from 'node:path'
+import { parse } from 'yaml'
 import {
-	loadMap,
+	mapPath,
 	riskLevels,
 	summarizeChanges,
+	type PrimitivesMap,
 	type Risk,
 } from '../checks/primitives.ts'
-import type { HarnessConfig } from '../lib/config.ts'
+import { configFile, type HarnessConfig } from '../lib/config.ts'
 
 /** `harness.json` → `policy`. Mirrors kody's ship-pr tiers:
  *    low    green CI
  *    medium + every gate reviewer's check passed and its findings addressed
- *    high   + every required reviewer has reviewed
+ *    high   + every required reviewer has reviewed the current head
  *  `authority` says who merges at each tier; "owner" parks the PR. */
 export type PolicyConfig = {
 	/** The npm script that is the local gate; also the default CI check name. */
@@ -21,7 +25,7 @@ export type PolicyConfig = {
 	reviewers?: {
 		/** Medium and high: the check must pass, and threads this login opened must be addressed. */
 		gate?: Array<{ check: string; login: string }>
-		/** High: these logins must have posted a review. */
+		/** High: these logins must have reviewed the PR's current head commit. */
 		required?: Array<string>
 		/** Logins whose unresolved threads must be answered. Default: gate logins + required. */
 		findingsFrom?: Array<string>
@@ -41,7 +45,10 @@ export type Verdict = {
 	lines: Array<string>
 }
 
+/** A reply that settles a finding: the fixing commit, or a reason. This is
+ *  an honour system — the policy checks the words, not the diff. */
 const addressed = /^\s*(Fixed in [0-9a-f]{7,}|wontfix:)/i
+const testFile = /\.(test|spec)\.[cm]?[jt]sx?$/
 
 function rank(risk: Risk) {
 	return riskLevels.indexOf(risk)
@@ -76,16 +83,59 @@ export function bodyField(
 	return match?.[1]
 }
 
+/** The policy's inputs come from `origin/main`, not the working tree, so a PR
+ *  cannot lower its own floors or change who may merge it. Falls back to the
+ *  working tree only when there is no `origin/main` (a repo not yet pushed). */
+export function policySources(root: string): {
+	config: HarnessConfig | undefined
+	map: PrimitivesMap
+	from: string
+} {
+	const show = (file: string) => {
+		try {
+			return execFileSync('git', ['show', `origin/main:${file}`], {
+				cwd: root,
+				encoding: 'utf8',
+				stdio: ['ignore', 'pipe', 'ignore'],
+			})
+		} catch {
+			return undefined
+		}
+	}
+	const mapSource = show(mapPath)
+	if (mapSource !== undefined) {
+		const configSource = show(configFile)
+		return {
+			config: configSource
+				? (JSON.parse(configSource) as HarnessConfig)
+				: undefined,
+			map: parse(mapSource) as PrimitivesMap,
+			from: 'origin/main',
+		}
+	}
+	const mapFile = path.join(root, mapPath)
+	if (!existsSync(mapFile)) throw new Error(`${mapPath} is missing`)
+	const configPath = path.join(root, configFile)
+	return {
+		config: existsSync(configPath)
+			? (JSON.parse(readFileSync(configPath, 'utf8')) as HarnessConfig)
+			: undefined,
+		map: parse(readFileSync(mapFile, 'utf8')) as PrimitivesMap,
+		from: 'working tree (no origin/main)',
+	}
+}
+
 type PullRequest = {
 	isDraft: boolean
 	baseRefName: string
+	headRefOid: string
 	body: string
 	statusCheckRollup: Array<{
 		name?: string
 		context?: string
 		conclusion?: string | null
 		state?: string
-	}>
+	}> | null
 }
 
 type PullFile = { status: string; filename: string; previous_filename?: string }
@@ -102,18 +152,36 @@ type Threads = {
 						}
 					}>
 				}
-				reviews: { nodes: Array<{ author: { login: string } }> }
+				reviews: {
+					nodes: Array<{
+						author: { login: string }
+						state: string
+						commit: { oid: string } | null
+					}>
+				}
 			}
 		}
 	}
 }
 
-export function evaluateMerge(
-	root: string,
-	config: HarnessConfig | undefined,
-	prArg?: string,
-): Verdict {
-	const policy = config?.policy ?? {}
+export function evaluateMerge(root: string, prRef?: string): Verdict {
+	const lines: Array<string> = []
+	const no = (message: string): Verdict => ({
+		allowed: false,
+		message: `Merge refused: ${message}. See docs/contributing/shipping-policy.md.`,
+		lines,
+	})
+
+	let sources: ReturnType<typeof policySources>
+	try {
+		sources = policySources(root)
+	} catch (error) {
+		return no(
+			`couldn't read the policy (${error instanceof Error ? error.message : String(error)})`,
+		)
+	}
+	lines.push(`policy: config and primitives from ${sources.from}`)
+	const policy = sources.config?.policy ?? {}
 	const gate = policy.gate ?? 'validate'
 	const ciCheck = policy.ciCheck ?? gate
 	const authority = {
@@ -130,23 +198,27 @@ export function evaluateMerge(
 		...required,
 	]
 	const ignoreChecks = new Set(reviewers.ignoreChecks ?? [])
-	const lines: Array<string> = []
-	const no = (message: string): Verdict => ({
-		allowed: false,
-		message: `Merge refused: ${message}. See docs/contributing/shipping-policy.md.`,
-		lines,
-	})
 
-	let pr = prArg
-	try {
-		pr ||= gh(['pr', 'view', '--json', 'number', '--jq', '.number'], root)
-	} catch {
-		return no("couldn't find the PR")
-	}
+	// The PR: a number, URL or branch given on the command, else the current branch's.
+	let pr: string
 	let repo: string
 	let info: PullRequest
 	let files: Array<PullFile>
 	try {
+		pr = gh(
+			[
+				'pr',
+				'view',
+				...(prRef ? [prRef] : []),
+				'--json',
+				'number',
+				'--jq',
+				'.number',
+			],
+			root,
+		)
+		if (!/^\d+$/.test(pr))
+			throw new Error(`no PR for ${prRef ?? 'this branch'}`)
 		repo = gh(
 			['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner'],
 			root,
@@ -158,7 +230,7 @@ export function evaluateMerge(
 					'view',
 					pr,
 					'--json',
-					'isDraft,baseRefName,body,statusCheckRollup',
+					'isDraft,baseRefName,headRefOid,body,statusCheckRollup',
 				],
 				root,
 			),
@@ -178,31 +250,39 @@ export function evaluateMerge(
 			.map((line) => JSON.parse(line) as PullFile)
 	} catch (error) {
 		return no(
-			`couldn't read PR #${pr} (${error instanceof Error ? error.message.split('\n')[0] : String(error)})`,
+			`couldn't read the PR (${error instanceof Error ? error.message.split('\n')[0] : String(error)})`,
 		)
 	}
 	if (info.isDraft) return no(`PR #${pr} is a draft`)
 	if (info.baseRefName !== 'main') return no(`PR #${pr} doesn't target main`)
 
-	// Tests may be added or changed, never removed.
+	// Tests may be added or changed, never removed — nor renamed into something else.
 	const removedTests = files.filter(
-		(f) => f.status === 'removed' && /\.(test|spec)\.ts$/.test(f.filename),
+		(f) =>
+			(f.status === 'removed' && testFile.test(f.filename)) ||
+			(f.previous_filename &&
+				testFile.test(f.previous_filename) &&
+				!testFile.test(f.filename)),
 	)
 	if (removedTests.length) {
 		return no(
-			`it deletes tests: ${removedTests.map((f) => f.filename).join(', ')}`,
+			`it deletes tests: ${removedTests.map((f) => f.previous_filename ?? f.filename).join(', ')}`,
 		)
 	}
 
 	// Risk = the highest of the declared Change, the primitives' floors and the Door.
-	const change = bodyField(info.body, 'Change', ['composes', 'extends', 'adds'])
+	const change = bodyField(info.body ?? '', 'Change', [
+		'composes',
+		'extends',
+		'adds',
+	])
 	if (!change)
 		return no(
 			'the PR needs exactly one Change line, set to one of `composes` / `extends` / `adds`',
 		)
 	const declared: Risk =
 		change === 'composes' ? 'low' : change === 'extends' ? 'medium' : 'high'
-	const door = bodyField(info.body, 'Door', ['two-way', 'one-way'])
+	const door = bodyField(info.body ?? '', 'Door', ['two-way', 'one-way'])
 	if (!door)
 		return no(
 			'the PR needs exactly one Door line, set to one of `two-way` / `one-way`',
@@ -213,15 +293,15 @@ export function evaluateMerge(
 	const paths = files.flatMap((f) =>
 		f.previous_filename ? [f.filename, f.previous_filename] : [f.filename],
 	)
-	const summary = summarizeChanges(loadMap(root), paths)
+	const summary = summarizeChanges(sources.map, paths)
 	const risk = max(max(declared, summary.floor), doorRisk)
 	lines.push(
 		`policy: PR #${pr} declared=${change} floor=${summary.floor} (${summary.primitives.map((p) => p.id).join(',')}) door=${doorRisk}`,
 		`policy: PR #${pr} risk=${risk}`,
 	)
 
-	// Every tier: green CI.
-	const checks = info.statusCheckRollup.map((c) => ({
+	// Every tier: green CI on the current head.
+	const checks = (info.statusCheckRollup ?? []).map((c) => ({
 		name: c.name ?? c.context ?? '',
 		state: c.conclusion ?? c.state ?? '',
 	}))
@@ -275,7 +355,7 @@ export function evaluateMerge(
 					'-F',
 					`pr=${pr}`,
 					'-f',
-					'query=query($owner:String!,$name:String!,$pr:Int!){repository(owner:$owner,name:$name){pullRequest(number:$pr){reviewThreads(first:100){nodes{isResolved comments(first:50){nodes{author{login} body}}}} reviews(first:100){nodes{author{login}}}}}}',
+					'query=query($owner:String!,$name:String!,$pr:Int!){repository(owner:$owner,name:$name){pullRequest(number:$pr){reviewThreads(first:100){nodes{isResolved comments(first:50){nodes{author{login} body}}}} reviews(first:100){nodes{author{login} state commit{oid}}}}}}',
 				],
 				root,
 			),
@@ -305,18 +385,39 @@ export function evaluateMerge(
 		return authority.medium === 'agent' ? yes(why) : park(why)
 	}
 
-	// High: every required reviewer has reviewed.
-	const reviewed = new Set(pull.reviews.nodes.map((r) => r.author.login))
+	// High: every required reviewer has a submitted review on the current head.
+	const reviewed = new Set(
+		pull.reviews.nodes
+			.filter((r) => r.state !== 'PENDING' && r.commit?.oid === info.headRefOid)
+			.map((r) => r.author.login),
+	)
 	for (const login of required) {
 		if (!reviewed.has(login))
-			return no(`waiting for a review from ${login} (risk=high)`)
+			return no(
+				`waiting for a review from ${login} on the current commit (risk=high)`,
+			)
 	}
 	const why = required.length ? 'all reviewers done' : 'CI green'
 	return authority.high === 'agent' ? yes(why) : park(why)
 }
 
-/** PR number from a `gh pr merge …` command, if one is given. */
-export function prNumberFromCommand(command: string) {
+/** The PR a `gh pr merge …` command names (number, URL or branch), if any. */
+export function prRefFromCommand(command: string) {
 	const tail = /\bmerge\b([^;&|]*)/.exec(command)?.[1] ?? ''
-	return /(?:^|\s)#?(\d+)(?=\s|$)/.exec(tail)?.[1]
+	const tokens = tail.trim().split(/\s+/).filter(Boolean)
+	for (let i = 0; i < tokens.length; i++) {
+		const token = tokens[i]!
+		if (token.startsWith('-')) {
+			// options that take a value
+			if (
+				/^(-m|--match-head-commit|-b|--body|-t|--subject|-A|--author-email|-R|--repo)$/.test(
+					token,
+				)
+			)
+				i++
+			continue
+		}
+		return token.replace(/^#/, '')
+	}
+	return undefined
 }

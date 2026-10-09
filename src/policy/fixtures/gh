@@ -1,17 +1,35 @@
 #!/usr/bin/env bash
 # Stub `gh` for merge-policy.test.ts. One simulated PR per scenario, set by env:
 # FILES ("status:path" list; "renamed:old>new"), DOOR, CHANGE, CHECKS (JSON),
-# THREADS (JSON), REVIEWERS (logins).
+# THREADS (JSON), REVIEWERS (logins; "login@oid" to review an older commit;
+# "login:PENDING" for a pending review), DRAFT, BASE, HEAD, FAIL (any value
+# makes every gh call fail).
+[ -n "${FAIL:-}" ] && { echo "stub gh: failing on purpose" >&2; exit 1; }
 DEF='[{"name":"validate","conclusion":"SUCCESS"}]'; CHECKS=${CHECKS:-$DEF}
+HEAD=${HEAD:-abc1234}
+# A `case` inside `$( )` inside a case arm trips bash's parser, so build the
+# review list in a function.
+reviews() {
+  for r in $REVIEWERS; do
+    login=${r%%[@:]*}; oid=$HEAD; state=COMMENTED
+    case "$r" in
+      (*@*) oid=${r#*@} ;;
+      (*:*) state=${r#*:} ;;
+    esac
+    printf '{"author":{"login":"%s"},"state":"%s","commit":{"oid":"%s"}},' "$login" "$state" "$oid"
+  done
+}
 case "$*" in
   "repo view"*) echo "dom-kelly/demo" ;;
-  "pr view --json number"*) echo 7 ;;
+  *"--json number"*) echo 7 ;;
   "pr view"*) jq -n --arg b "## Intent
 **Door:** \`${DOOR:-two-way}\`
-**Change:** \`${CHANGE-composes}\`" --argjson c "$CHECKS" '{isDraft:false,baseRefName:"main",body:$b,statusCheckRollup:$c}' ;;
+**Change:** \`${CHANGE-composes}\`" --argjson c "$CHECKS" --arg base "${BASE:-main}" --arg head "$HEAD" --argjson d "${DRAFT:-false}" \
+      '{isDraft:$d,baseRefName:$base,headRefOid:$head,body:$b,statusCheckRollup:$c}' ;;
   "api --paginate"*) for f in $FILES; do st=${f%%:*} p=${f#*:}
       if [ "$st" = renamed ]; then jq -nc --arg a "${p#*>}" --arg b "${p%%>*}" '{status:"renamed",filename:$a,previous_filename:$b}'
       else jq -nc --arg s "$st" --arg p "$p" '{status:$s,filename:$p}'; fi; done ;;
-  "api graphql"*) revs=$(for r in $REVIEWERS; do printf '{"author":{"login":"%s"}},' "$r"; done); jq -n --argjson t "${THREADS:-[]}" --argjson r "[${revs%,}]" '{data:{repository:{pullRequest:{reviewThreads:{nodes:$t},reviews:{nodes:$r}}}}}' ;;
+  "api graphql"*) revs=$(reviews)
+      jq -n --argjson t "${THREADS:-[]}" --argjson r "[${revs%,}]" '{data:{repository:{pullRequest:{reviewThreads:{nodes:$t},reviews:{nodes:$r}}}}}' ;;
   *) echo "stub gh: unhandled $*" >&2; exit 1 ;;
 esac

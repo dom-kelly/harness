@@ -1,10 +1,11 @@
 import { spawnSync } from 'node:child_process'
+import { chmodSync } from 'node:fs'
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { packageRoot } from '../lib/repo.ts'
-import { bodyField, prNumberFromCommand } from './merge-policy.ts'
+import { bodyField, prRefFromCommand } from './merge-policy.ts'
 
 // Runs the real `harness policy` against a stubbed `gh` (fixtures/gh), one
 // simulated PR per case, in a product with mealplanner-like tiers. A bypass here
@@ -16,6 +17,8 @@ const BUGBOT =
 	'[{"name":"validate","conclusion":"SUCCESS"},{"name":"Cursor Bugbot","conclusion":"SUCCESS"}]'
 
 beforeAll(async () => {
+	// The stub must be executable to shadow gh via PATH; editors can drop the bit.
+	chmodSync(path.join(packageRoot, 'src/policy/fixtures/gh'), 0o755)
 	product = await mkdtemp(path.join(tmpdir(), 'harness-policy-'))
 	await mkdir(path.join(product, 'docs/contributing/architecture'), {
 		recursive: true,
@@ -240,6 +243,30 @@ describe('merge policy: review findings (medium)', () => {
 			allowed: false,
 		})
 	})
+	it('ignores unresolved threads from reviewers not in findingsFrom', () => {
+		const other = JSON.stringify([
+			{
+				isResolved: false,
+				comments: {
+					nodes: [{ author: { login: 'coderabbitai' }, body: 'nit' }],
+				},
+			},
+		])
+		expect(policy({ ...medium, THREADS: other })).toMatchObject({
+			allowed: true,
+		})
+	})
+	it('a resolved thread is addressed', () => {
+		const resolved = JSON.stringify([
+			{
+				isResolved: true,
+				comments: { nodes: [{ author: { login: 'cursor' }, body: 'bug' }] },
+			},
+		])
+		expect(policy({ ...medium, THREADS: resolved })).toMatchObject({
+			allowed: true,
+		})
+	})
 	it("doesn't count a vague reply", () => {
 		expect(policy({ ...medium, THREADS: thread('thanks!') })).toMatchObject({
 			allowed: false,
@@ -255,7 +282,64 @@ describe('merge policy: review findings (medium)', () => {
 	)
 })
 
+describe('merge policy: config comes from origin/main, not the working tree', () => {
+	it('ignores an uncommitted change to authority or floors', async () => {
+		const { execFileSync } = await import('node:child_process')
+		const git = (...args: Array<string>) =>
+			execFileSync('git', args, { cwd: product, stdio: 'ignore' })
+		git('init', '-q', '-b', 'main')
+		git('-c', 'user.email=t@t', '-c', 'user.name=t', 'add', '.')
+		git(
+			'-c',
+			'user.email=t@t',
+			'-c',
+			'user.name=t',
+			'commit',
+			'-q',
+			'-m',
+			'base',
+		)
+		git('update-ref', 'refs/remotes/origin/main', 'HEAD')
+		const file = path.join(product, 'harness.json')
+		const before = await import('node:fs').then((fs) =>
+			fs.readFileSync(file, 'utf8'),
+		)
+		const cfg = JSON.parse(before)
+		cfg.policy.authority = { high: 'agent' }
+		cfg.policy.reviewers = {}
+		await writeFile(file, JSON.stringify(cfg))
+		try {
+			const result = policy({
+				FILES: 'added:drizzle/0009.sql',
+				CHECKS: BUGBOT,
+				REVIEWERS: 'coderabbitai devin-ai-integration',
+			})
+			expect(result.message).toMatch(/needs the user/)
+			expect(result.allowed).toBe(false)
+		} finally {
+			await writeFile(file, before)
+			await rm(path.join(product, '.git'), { recursive: true, force: true })
+		}
+	})
+})
+
 describe('merge policy: authority is per repo', () => {
+	it('parks medium when the repo says owner', async () => {
+		const file = path.join(product, 'harness.json')
+		const before = await import('node:fs').then((fs) =>
+			fs.readFileSync(file, 'utf8'),
+		)
+		const cfg = JSON.parse(before)
+		cfg.policy.authority = { medium: 'owner' }
+		await writeFile(file, JSON.stringify(cfg))
+		try {
+			expect(
+				policy({ FILES: 'modified:app/routes/shopping.tsx', CHECKS: BUGBOT }),
+			).toMatchObject({ allowed: false })
+		} finally {
+			await writeFile(file, before)
+		}
+	})
 	it('lets an agent merge high risk when the repo says so', async () => {
 		const file = path.join(product, 'harness.json')
 		const before = await import('node:fs').then((fs) =>
@@ -291,7 +375,14 @@ it('body fields and PR numbers parse exactly', () => {
 			'one-way',
 		]),
 	).toBeUndefined()
-	expect(prNumberFromCommand('gh pr merge 42 --squash')).toBe('42')
-	expect(prNumberFromCommand('gh pr merge --squash #7')).toBe('7')
-	expect(prNumberFromCommand('gh pr merge --squash')).toBeUndefined()
+	expect(prRefFromCommand('gh pr merge 42 --squash')).toBe('42')
+	expect(prRefFromCommand('gh pr merge --squash #7')).toBe('7')
+	expect(prRefFromCommand('gh pr merge --squash')).toBeUndefined()
+	expect(
+		prRefFromCommand('gh pr merge https://github.com/o/r/pull/99 --squash'),
+	).toBe('https://github.com/o/r/pull/99')
+	expect(
+		prRefFromCommand('gh pr merge my-branch --match-head-commit abc --squash'),
+	).toBe('my-branch')
+	expect(prRefFromCommand('gh pr merge --match-head-commit abc 12')).toBe('12')
 })

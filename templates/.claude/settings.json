@@ -14,8 +14,7 @@
 			"Bash(gh issue list *)",
 			"Bash(gh pr view *)",
 			"Bash(gh pr checks *)"
-		],
-		"ask": ["Bash(git push *)", "Bash(gh pr merge *)"]
+		]
 	},
 	"hooks": {
 		"PreToolUse": [
