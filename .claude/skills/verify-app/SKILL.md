@@ -1,26 +1,30 @@
 ---
 name: verify-app
 description: >
-  Prove a change works against the running app using the app CLI and the Feature
-  Map instead of ad-hoc curl scripts. Use after changing routes, UI, APIs, or
-  deploy behavior, or when the user asks to run, check, or verify the app.
+  Prove a change works against the running app with realistic data, and record
+  the evidence in the PR. Use after changing routes, UI, APIs, or deploy
+  behavior, or when the user asks to run, check, or verify the app.
 ---
 
 # Verify app
 
-Docs: [Feature Map and app CLI](../../../docs/contributing/features/README.md).
+A green gate is necessary, not sufficient: it says nothing about the screen or
+route you changed.
 
-1. `npm run app -- doctor`, then `npm run app -- dev` (starts or reuses).
-2. Find the surface: `npm run app -- map <query>`. Read that one feature doc.
-3. Drive it: `npm run app -- request <METHOD> <path> --contains '<text>'`.
-   Assert on content, not only status.
-4. For browser UI, use browser automation against the printed origin and
-   exercise the changed flow with realistic data.
-5. After deploy (when policy allows):
-   `npm run app -- health --origin <url> --sha <merge-sha>`.
-6. Record what you ran and saw in the PR Testing section.
+1. Start the app the way
+   [getting-started.md](../../../docs/contributing/getting-started.md) says, on
+   a fresh or seeded local dataset. Never against production data.
+2. Create the data the change needs first. A passing health check or sign-in
+   proves nothing about the changed surface.
+3. Drive the changed surface. For HTTP, assert on content, not only status. For
+   UI, use browser automation at a realistic viewport and exercise the changed
+   flow plus one edge case (empty state, a second user, bad input).
+4. Watch the server log and browser console for errors while you do it.
+5. After deploy (when policy allows), confirm `/health` on the deployed origin
+   reports the merge sha.
+6. Record what you ran and what you saw in the PR's Testing section, with a
+   screenshot for UI changes.
 
-If you need a capability the CLI lacks (login, seeding, a preview origin), add
-it to `tools/app-cli.ts` with a test rather than writing a throwaway script. New
-routes need a `src/features.ts` entry and a feature doc
-(`npm run features:check`).
+If you write the same driver script twice, add a tool in `tools/` with a test
+instead; that is the trigger for an app CLI in
+[growth.md](../../../docs/contributing/growth.md).

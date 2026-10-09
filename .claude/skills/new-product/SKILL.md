@@ -51,9 +51,10 @@ For each non-goal an agent would plausibly re-propose, add a decision record
 ## 6. Adapt the harness to the stack
 
 - Replace `src/` with the real app skeleton; keep `/health` returning the sha.
-- Update `src/features.ts`, feature docs, and the app CLI (`dev`, auth, seed).
-- Adjust ratchet globs and `knip` entries; keep every check in `validate`.
-- Add stack-specific checkers only when they encode a real rule.
+- Update the `dev` script and the `code` roots in `primitives.yaml`; keep every
+  check in `validate`.
+- Add stack-specific checkers only when they encode a rule that was broken
+  ([growth.md](../../../docs/contributing/growth.md)).
 
 ## 7. Plan slices
 

@@ -16,8 +16,4 @@
 
 ## Testing
 
-<!-- Commands run and results (validate, targeted tests, app CLI evidence). -->
-
-## System changes
-
-<!-- Visual recap block for non-trivial work. See the visual-recap skill. -->
+<!-- Commands run and results (validate, targeted tests, verify-app evidence). -->

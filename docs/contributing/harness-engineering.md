@@ -5,7 +5,8 @@ execute implementation. Human attention is the scarce resource, so every change
 should leave the harness a little stronger, not only the product.
 
 Background: OpenAI, "Harness engineering: leveraging Codex in an agent-first
-world" (https://openai.com/index/harness-engineering/).
+world" (https://openai.com/index/harness-engineering/), as practised in
+[kentcdodds/kody](https://github.com/kentcdodds/kody).
 
 ## Principles
 
@@ -15,6 +16,8 @@ world" (https://openai.com/index/harness-engineering/).
 - Small enforceable rules beat long fragile instructions.
 - Boring, composable abstractions beat opaque magic.
 - Done is falsifiable: a command, a test, or observable app behavior.
+- The harness ships the loop, not an inventory. A guardrail earns its place by
+  catching a mistake that happened ([growth.md](./growth.md)).
 
 ## The loop
 
@@ -41,7 +44,8 @@ Work moves through three stages:
    by any agent, not locked into one tool's memory or automations.
 
 Agents do not feel pain, so they will not push work into stage 3 on their own.
-The friction log and the routines below are how that pressure gets applied.
+[gotchas.md](./gotchas.md) is where the pressure collects: every entry is a
+candidate for a checker, and a gotcha that becomes a checker gets deleted.
 
 ## The enforcement ladder
 
@@ -58,23 +62,19 @@ Rule of thumb: if a reviewer makes the same comment twice, encode it.
 
 ## Checkers in `validate`
 
-| Check                  | Catches                                                        |
-| ---------------------- | -------------------------------------------------------------- |
-| `format:check`, `lint` | Formatting and correctness lint                                |
-| `typecheck`, `test`    | Types and behavior                                             |
-| `knip`                 | Dead files, exports, and dependencies                          |
-| `docs:check-temporal`  | Changelog wording in docs that should describe the present     |
-| `docs:check-decisions` | Duplicate or unindexed decision record numbers                 |
-| `docs:check-mermaid`   | Mermaid diagrams that GitHub cannot render                     |
-| `audit:prod`           | Production dependency vulnerabilities (moderate and above)     |
-| `docs:check-links`     | Broken relative links in markdown                              |
-| `skills:check`         | Skill frontmatter, description quality, and length             |
-| `primitives:check`     | Unowned source files and stale paths in the primitives map     |
-| `features:check`       | Routes missing from the Feature Map, or features with no doc   |
-| `slop-ratchet:check`   | Oversized files (ratchet only tightens) and decorative banners |
+| Check                  | Catches                                                    |
+| ---------------------- | ---------------------------------------------------------- |
+| `format:check`, `lint` | Formatting and correctness lint                            |
+| `typecheck`, `test`    | Types and behavior                                         |
+| `docs:check-decisions` | Duplicate or unindexed decision record numbers             |
+| `docs:check-links`     | Broken relative links in markdown                          |
+| `skills:check`         | Skill frontmatter, description quality, and length         |
+| `primitives:check`     | Unowned source files and stale paths in the primitives map |
+| `audit:prod`           | Production dependency vulnerabilities (moderate and above) |
 
 Add a checker with a test in `tools/`, wire it into `validate`, and list it
-here.
+here. Candidates that have not yet earned a place are in
+[growth.md](./growth.md).
 
 ## Agent guardrails
 
@@ -84,30 +84,16 @@ here.
 - A PreToolUse hook (`tools/claude-hooks/guard-bash.ts`) blocks force-pushes,
   `--no-verify`, `git reset --hard`, and `git clean -f`, with a message saying
   what to do instead.
-- A SessionStart hook runs `npm run app -- doctor` so every session starts with
-  the environment's state and fix commands.
 
-## Maintenance
+Git hooks (`.husky/`) format staged files on commit and run typecheck and tests
+on push, skipping them for docs-only diffs. They apply to any agent, not only
+Claude Code.
 
-Scheduled agents do the gardening:
-[maintenance routines](../../.claude/routines/README.md) sweep friction, prune
-tests and docs, reap legacy code, trim skills, chase performance, and audit the
-codebase whenever a new model ships.
+## Growth
 
-Track the size of the codebase with `npm run loc`. Agents add code readily and
-delete it reluctantly; a falling number after a reaper run is a good sign.
-
-## Roles and safety nets
-
-- [Agent roles](./agent-roles.md) — product partner vs implementer vs reviewers;
-  records live in the repo.
-- [Feature flags](./feature-flags.md) — the main way to ship without reading
-  every line.
-- [Preview environments](./preview-environments.md) — verify against a real
-  deployment with seeded data.
-- [Instrumentation](./instrumentation.md) — data before decisions; errors that
-  start fix agents.
-- [Disaster recovery](./disaster-recovery.md) — tested, offsite backups.
+Routines, feature flags, previews, instrumentation, and the heavier checkers are
+not installed. Each is listed in [growth.md](./growth.md) with the trigger that
+justifies it. Add one only in a PR that names the trigger that fired.
 
 ## Cost
 

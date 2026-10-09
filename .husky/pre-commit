@@ -1,2 +1,3 @@
+node tools/git-hook-checks.ts node-version
 npx lint-staged
 node tools/git-hook-checks.ts pre-commit
