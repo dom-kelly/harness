@@ -2,14 +2,17 @@
 
 Real mistakes and their fixes, one line each. Add a line when an agent gets
 something wrong. If a gotcha can become a checker or a test, make it one and
-delete the line
+delete the line. The starter entries come from the first product built on this
+template; replace them with this repo's own as they appear
 ([enforcement ladder](./harness-engineering.md#the-enforcement-ladder)).
 
 - Other agents may be working in this repo at the same time
   (`git worktree list`). Stage files by explicit path, never `git add -A` or
   `git add .`; a broad add once swept another session's uncommitted work into a
   PR. Do branch work in your own worktree
-  (`git worktree add ../<repo>-<topic> <branch>`).
+  (`git worktree add ../<repo>-<topic> <branch>`), and check for an existing PR
+  or a running agent on the same change before starting; never open a competing
+  PR.
 - A review bot's status badge can stay "in progress" after its review is posted,
   and it pauses itself after a run of commits. Read the PR timeline for the
   review on the current head SHA, not the badge.

@@ -85,9 +85,10 @@ here. Candidates that have not yet earned a place are in
   `--no-verify`, `git reset --hard`, and `git clean -f`, with a message saying
   what to do instead.
 
-Git hooks (`.husky/`) format staged files on commit and run typecheck and tests
-on push, skipping them for docs-only diffs. They apply to any agent, not only
-Claude Code.
+Git hooks (`.husky/`) check the Node version against `.nvmrc`, format staged
+files, and run the doc checkers on every commit and push; non-docs commits also
+get typecheck and the primitives check, and pushes get the tests. They apply to
+any agent, not only Claude Code.
 
 ## Growth
 
