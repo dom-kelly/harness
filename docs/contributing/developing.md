@@ -23,7 +23,9 @@ node bin/harness.ts --help
 
 The root `.claude/skills` holds copies of `templates/.claude/skills`: the
 harness uses the same skills it ships. A test fails if the copies drift, so edit
-the template and copy it over (a symlink breaks git stash and npm pack).
+the template and copy it over (a symlink breaks git stash and npm pack). Their
+links point at product docs, so `harness.json` lists them under
+`checks.ignoreLinksIn`.
 
 ## Changing a template
 
