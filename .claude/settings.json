@@ -6,8 +6,6 @@
 			"Bash(npm run lint)",
 			"Bash(npm run typecheck)",
 			"Bash(npm run test)",
-			"Bash(npm run loc)",
-			"Bash(npm run app -- *)",
 			"Bash(npx vitest run *)",
 			"Bash(node tools/*)",
 			"Bash(git diff *)",
@@ -27,16 +25,6 @@
 					{
 						"type": "command",
 						"command": "node \"$CLAUDE_PROJECT_DIR/tools/claude-hooks/guard-bash.ts\""
-					}
-				]
-			}
-		],
-		"SessionStart": [
-			{
-				"hooks": [
-					{
-						"type": "command",
-						"command": "node \"$CLAUDE_PROJECT_DIR/tools/app-cli.ts\" doctor"
 					}
 				]
 			}

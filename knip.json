@@ -1,5 +1,0 @@
-{
-	"$schema": "https://unpkg.com/knip@5/schema.json",
-	"entry": ["tools/*.ts", "tools/claude-hooks/*.ts", "vitest.setup.ts"],
-	"project": ["src/**/*.ts", "tools/**/*.ts"]
-}

@@ -5,14 +5,17 @@ Edit the **Authority** table to change what agents may do.
 
 ## Risk levels
 
-Agents self-assess risk from the diff and the
-[visual recap](../../.claude/skills/visual-recap/SKILL.md) classification.
+Agents assess risk from the diff and the primitives it touches
+(`node tools/classify-primitives.ts --base origin/main`), then judge `composes`
+vs `extends` themselves.
 
 | Risk       | Typical shape                                                                |
 | ---------- | ---------------------------------------------------------------------------- |
 | **Low**    | `composes`: wiring, copy, docs, tests, isolated fixes                        |
 | **Medium** | `extends`: changes a primitive's behavior or contract; several files         |
 | **High**   | `adds` a primitive, migrations, auth, money, data deletion, any one-way door |
+
+A diff that touches a primitive's `invariants` is at least medium.
 
 ## Authority
 
@@ -27,18 +30,12 @@ Agents self-assess risk from the diff and the
 should run. Raise authority per row as trust in the harness grows (for example,
 "Low: merge when CI green").
 
-## Safety nets
-
-- **Medium and high** risk changes ship behind a
-  [feature flag](./feature-flags.md) at `off` or `experiments` unless the owner
-  waives it. A flag turns a one-way door into a two-way door.
-- **High** risk also needs a written rollback plan and confirmation that
-  [disaster recovery](./disaster-recovery.md) covers the data involved.
-
 ## Review requirements
 
 - **Low:** green `validate`.
-- **Medium:** green `validate`, independent review (fresh-context sub-agent plus
-  any AI review services on the repo), valid feedback addressed, `verify-app`
-  evidence on a [preview](./preview-environments.md) when one exists.
-- **High:** all of the above plus a written rollback plan in the PR.
+- **Medium:** green `validate`, independent review (the AI reviewers installed
+  on the repo plus one fresh-context sub-agent), valid feedback addressed, and
+  `verify-app` evidence against the running app.
+- **High:** all of the above plus a written rollback plan in the PR. If the
+  change is a one-way door with no cheap rollback, say so; that is the trigger
+  for feature flags in [growth.md](./growth.md).

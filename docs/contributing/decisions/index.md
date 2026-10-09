@@ -25,6 +25,7 @@ instead of editing or deleting it.
 
 - [0001 — One local gate; no CI-only checks](./0001-one-local-gate.md)
 - [0002 — No multi-agent orchestration by default](./0002-no-default-orchestration.md)
+- [0003 — Slim template; add tooling when it earns its place](./0003-slim-template-grow-when-earned.md)
 
 ## Historical
 

@@ -4,16 +4,14 @@
 
 - `CLAUDE.md` — the map. Links only, plus the one-line product summary.
 - `docs/contributing/` — how the system works and how to change it.
-- `docs/contributing/decisions/` — point-in-time "no" decisions (exempt from the
-  temporal check).
+- `docs/contributing/decisions/` — point-in-time "no" decisions.
 - `.claude/skills/` — repeatable workflows. Thin: steps plus links to docs.
 - Code comments — only for a non-obvious _why_ that a reader of that line needs.
 
 ## How to write them
 
 - Describe the present. "The cache expires after an hour", not "we now expire
-  the cache". `docs:check-temporal` enforces this. History belongs in PR
-  descriptions and decision records.
+  the cache". History belongs in PR descriptions and decision records.
 - One topic per doc; link instead of repeating.
 - Prefer a checker over a should-list. If a doc prescribes a rule a script could
   check, write the script (see

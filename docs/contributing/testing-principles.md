@@ -21,8 +21,7 @@ the lightest kind of test that can catch the bug.
   assertions. Do not split a flow into many tiny tests that each rebuild the
   world.
 - **Inject, do not mutate globals.** Pass `env`, clocks, and clients as
-  parameters (see `isEnabled` in `src/flags.ts`) instead of editing
-  `process.env` in a test.
+  parameters instead of editing `process.env` in a test.
 - **Offline.** Tests never call real third-party services; use a mock server.
 
 ## Assertions to avoid
@@ -30,8 +29,8 @@ the lightest kind of test that can catch the bug.
 - **Tautologies** that re-state the implementation (asserting a constant equals
   itself, or a mock returns what it was told to).
 - **Vanished-copy absence checks** such as "the footer no longer contains X".
-  They help while building and say nothing afterwards; the test-gardener routine
-  deletes them.
+  They help while building and say nothing afterwards; delete them once the
+  change ships.
 - Snapshot tests of large output nobody reads.
 
 ## Guardrails (enforced)
@@ -41,4 +40,5 @@ the lightest kind of test that can catch the bug.
 - Mocks reset between tests (`clearMocks`, `mockReset`).
 - One timeout (20s) locally and in CI, so a pass locally means a pass in CI.
 - Never skip hooks with `--no-verify` and never retry a flaky test into green;
-  fix it or file friction. The Claude Code guard hook blocks `--no-verify`.
+  fix it, or record it in [gotchas.md](./gotchas.md). The Claude Code guard hook
+  blocks `--no-verify`.

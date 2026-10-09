@@ -11,9 +11,9 @@ theater") that consume more attention than they save.
 
 ## Decision
 
-One implementer is the default. Fan out only through the `orchestrate` skill
-when work splits into non-conflicting slices by file ownership, and the
-orchestrator does final QA itself.
+One implementer is the default. Fan out only when the owner asks for it when
+work splits into non-conflicting slices by file ownership, and the orchestrator
+does final QA itself.
 
 ## Consequences
 
