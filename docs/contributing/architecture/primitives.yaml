@@ -9,6 +9,15 @@ scan:
   - templates
   - scaffold
 
+# Docs and the map itself belong to no primitive; changing them alone is low risk.
+unowned:
+  - docs/
+  - README.md
+  - AGENTS.md
+  - CLAUDE.md
+  - SECURITY.md
+  - .harness/
+
 unowned_suffixes:
   - .test.ts
 
