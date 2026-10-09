@@ -1,0 +1,7 @@
+{
+	"harness": "0.1.0",
+	"product": { "name": "harness" },
+	"checks": {
+		"ignoreLinksIn": [".claude/skills/"]
+	}
+}

@@ -1,29 +1,74 @@
-# Stable taxonomy of system building blocks. See architecture/index.md.
-# Risk labels in PRs:
-#   composes - wires existing primitives without changing them (low)
-#   extends  - changes a primitive's behavior, shape, or contract (medium)
-#   adds     - introduces a new primitive; update this file in the same PR (high)
+# The harness's own building blocks. Products get their own map from the
+# template; this one is about this repo.
 
 version: 1
 
-# Do-not-regress properties. Primitives and PRs refer to them by id;
-# docs/contributing/security.md lists the security-relevant ones.
-invariants:
-  - id: health-reports-sha
-    statement: /health returns ok and the deployed git sha.
+scan:
+  - src
+  - bin
+  - templates
+  - scaffold
+
+unowned_suffixes:
+  - .test.ts
 
 groups:
-  - id: surfaces
-    name: Entry points
+  - id: cli
+    name: Command line
+  - id: engine
+    name: Checks and hooks
+  - id: content
+    name: What products receive
 
 primitives:
-  - id: http-server
-    group: surfaces
-    name: HTTP server and routing
-    summary: Node HTTP server, route table, and health endpoint.
+  - id: cli
+    group: cli
+    name: CLI entry and commands
+    summary: Argument parsing and the new, adopt, sync, doctor commands.
+    floor: medium
     code:
-      - src
+      - bin
+      - src/cli
     docs:
-      - docs/contributing/architecture/index.md
-    invariants:
-      - health-reports-sha
+      - docs/contributing/developing.md
+
+  - id: checks
+    group: engine
+    name: Checkers
+    summary: decisions, links, skills, primitives map, repo rules, node version.
+    floor: medium
+    code:
+      - src/checks
+    docs:
+      - docs/contributing/developing.md
+
+  - id: hooks
+    group: engine
+    name: Guard and git hooks
+    summary: The Claude Code Bash guard and the pre-commit/pre-push runner.
+    floor: high
+    code:
+      - src/hooks
+    docs:
+      - docs/contributing/developing.md
+
+  - id: templating
+    group: engine
+    name: Templates engine
+    summary: harness.json, manifest, render, apply and three-way sync.
+    floor: high
+    code:
+      - src/lib
+    docs:
+      - docs/contributing/decisions/0004-harness-is-a-cli-package.md
+
+  - id: templates
+    group: content
+    name: Product templates and scaffold
+    summary: Managed and owned files written into products, and the starter app.
+    floor: medium
+    code:
+      - templates
+      - scaffold
+    docs:
+      - docs/contributing/developing.md
