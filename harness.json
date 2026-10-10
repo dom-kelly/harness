@@ -1,1 +1,17 @@
-{"harness":"0","product":{"name":"demo"},"policy":{"gate":"validate","authority":{"high":"owner"},"reviewers":{"gate":[{"check":"Cursor Bugbot","login":"cursor"}],"required":["coderabbitai","devin-ai-integration"],"findingsFrom":["cursor","devin-ai-integration"],"ignoreChecks":["CodeRabbit"]}}}
+{
+	"harness": "0.1.0",
+	"product": {
+		"name": "harness"
+	},
+	"checks": {
+		"ignoreLinksIn": [".claude/skills/"]
+	},
+	"policy": {
+		"gate": "validate",
+		"authority": {
+			"low": "agent",
+			"medium": "agent",
+			"high": "agent"
+		}
+	}
+}

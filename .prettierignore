@@ -1,0 +1,4 @@
+package-lock.json
+.tmp
+dist
+.harness

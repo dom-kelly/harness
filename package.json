@@ -1,0 +1,59 @@
+{
+	"name": "@dom-kelly/harness",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"engines": {
+		"node": ">=22.18"
+	},
+	"scripts": {
+		"format": "prettier --write .",
+		"format:check": "prettier --check .",
+		"lint": "oxlint .",
+		"lint:fix": "oxlint . --fix",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"validate": "concurrently -g -n format,lint,types,test,check,e2e,audit \"npm:format:check\" \"npm:lint\" \"npm:typecheck\" \"npm:test\" \"npm:check\" \"npm:test:e2e\" \"npm:audit:prod\"",
+		"validate:fix": "npm run format && npm run lint:fix",
+		"prepare": "node scripts/prepare.mjs",
+		"audit:prod": "npm audit --omit=dev --audit-level=moderate",
+		"harness": "node bin/harness.ts",
+		"check": "node bin/harness.ts check",
+		"build": "tsc -p tsconfig.build.json",
+		"test:e2e": "vitest run --config vitest.e2e.config.ts"
+	},
+	"lint-staged": {
+		"*.{ts,js,mjs}": [
+			"oxlint --fix",
+			"prettier --write"
+		],
+		"*": "prettier --write --ignore-unknown"
+	},
+	"devDependencies": {
+		"@types/node": "^22.18.0",
+		"concurrently": "^9.2.0",
+		"husky": "^9.1.7",
+		"lint-staged": "^16.1.0",
+		"oxlint": "^1.14.0",
+		"prettier": "^3.6.0",
+		"typescript": "^5.9.0",
+		"vitest": "^3.2.0"
+	},
+	"description": "The agent harness as a CLI: scaffold, adopt, sync, check, classify, hooks.",
+	"bin": {
+		"harness": "dist/bin/harness.js"
+	},
+	"files": [
+		"dist",
+		"templates",
+		"scaffold"
+	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/dom-kelly/harness.git"
+	},
+	"dependencies": {
+		"yaml": "^2.8.0"
+	}
+}

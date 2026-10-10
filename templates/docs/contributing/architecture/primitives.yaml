@@ -1,0 +1,29 @@
+# Stable taxonomy of system building blocks. See architecture/index.md.
+# Risk labels in PRs:
+#   composes - wires existing primitives without changing them (low)
+#   extends  - changes a primitive's behavior, shape, or contract (medium)
+#   adds     - introduces a new primitive; update this file in the same PR (high)
+
+version: 1
+
+# Do-not-regress properties. Primitives and PRs refer to them by id;
+# docs/contributing/security.md lists the security-relevant ones.
+invariants:
+  - id: health-reports-sha
+    statement: /health returns ok and the deployed git sha.
+
+groups:
+  - id: surfaces
+    name: Entry points
+
+primitives:
+  - id: http-server
+    group: surfaces
+    name: HTTP server and routing
+    summary: Node HTTP server, route table, and health endpoint.
+    code:
+      - src
+    docs:
+      - docs/contributing/architecture/index.md
+    invariants:
+      - health-reports-sha

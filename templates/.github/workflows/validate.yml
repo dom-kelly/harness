@@ -1,0 +1,38 @@
+name: Validate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      # npm pins GitHub git dependencies as SSH URLs; runners have no SSH key,
+      # so clone the (public) harness over HTTPS instead. A private harness
+      # would need a token here: url."https://x-access-token:${TOKEN}@github.com/".
+      - run:
+          git config --global url."https://github.com/".insteadOf
+          "ssh://git@github.com/"
+
+      - run: npm ci
+      - run: npm run validate
