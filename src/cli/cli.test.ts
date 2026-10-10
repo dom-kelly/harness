@@ -25,6 +25,7 @@ import {
 	baseDir,
 	legacyBaseDir,
 	mergeThreeWay,
+	migratePackageJson,
 	syncTemplates,
 } from '../lib/templates.ts'
 import { adoptRepo, patchPackageJson } from './adopt.ts'
@@ -350,6 +351,7 @@ async function legacyProduct(dir: string, templates: string) {
 		policy: { authority: { high: 'owner' } },
 	})
 	await writeFile(path.join(root, 'managed/b.md'), 'one\ntwo\nthree\nmine\n')
+	await writeFile(path.join(root, 'package.json'), legacyPackageJson)
 	await rename(path.join(root, configFile), path.join(root, legacyConfigFile))
 	await mkdir(path.join(root, path.dirname(legacyBaseDir)), { recursive: true })
 	await rename(path.join(root, baseDir), path.join(root, legacyBaseDir))
@@ -357,18 +359,53 @@ async function legacyProduct(dir: string, templates: string) {
 	return { root, vars }
 }
 
-const renamedBoth = [
+const legacyPackageJson = `${JSON.stringify(
+	{
+		name: 'old',
+		scripts: {
+			test: 'vitest run',
+			harness: 'harness',
+			'harness:check': 'harness check',
+			validate: 'concurrently "npm:test" "npx harness check"',
+		},
+		devDependencies: {
+			'@dom-kelly/harness': 'git+https://github.com/dom-kelly/harness.git',
+			prettier: '^3.6.0',
+		},
+	},
+	null,
+	'\t',
+)}\n`
+
+const renamedAll = [
 	`${legacyConfigFile} → ${configFile}`,
 	`${legacyBaseDir} → ${baseDir}`,
+	'package.json → @dom-kelly/reins and npx reins (run npm install)',
 ]
 
-async function expectMigrated(root: string) {
+/** Old names gone, config and base copies intact, package.json pointed at
+ *  reins (adopt also adds its own scripts and dependencies, so match, not equal). */
+async function expectMigrated(root: string, baseA: string) {
 	expect(existsSync(path.join(root, legacyConfigFile))).toBe(false)
 	expect(existsSync(path.join(root, path.dirname(legacyBaseDir)))).toBe(false)
 	expect(readConfig(root)?.policy).toEqual({ authority: { high: 'owner' } })
 	expect(await readFile(path.join(root, baseDir, 'managed/a.md'), 'utf8')).toBe(
-		'a1\n',
+		baseA,
 	)
+	const pkg = JSON.parse(
+		await readFile(path.join(root, 'package.json'), 'utf8'),
+	)
+	expect(pkg.scripts).toMatchObject({
+		test: 'vitest run',
+		reins: 'reins',
+		'reins:check': 'reins check',
+		validate: 'concurrently "npm:test" "npx reins check"',
+	})
+	expect(pkg.devDependencies).toMatchObject({
+		'@dom-kelly/reins': 'git+https://github.com/dom-kelly/reins.git',
+		prettier: '^3.6.0',
+	})
+	expect(JSON.stringify(pkg)).not.toContain('harness')
 }
 
 test('adopt renames harness.json and .harness/base to the reins names, losing nothing', async () => {
@@ -376,13 +413,19 @@ test('adopt renames harness.json and .harness/base to the reins names, losing no
 	try {
 		const { root } = await legacyProduct(dir, path.join(dir, 'templates'))
 		const result = adoptRepo(root)
-		expect(result.renamed).toEqual(renamedBoth)
-		await expectMigrated(root)
+		expect(result.renamed).toEqual(renamedAll)
+		await expectMigrated(root, 'a1\n')
 		expect(readConfig(root)?.product.name).toBe('old')
 		expect(await readFile(path.join(root, 'managed/b.md'), 'utf8')).toBe(
 			'one\ntwo\nthree\nmine\n',
 		)
 		expect(adoptRepo(root).renamed).toEqual([])
+		// A stale old file next to the new one is reported, never overwritten.
+		await writeFile(path.join(root, legacyConfigFile), '{"stale":1}\n')
+		expect(adoptRepo(root).renamed).toEqual([
+			`${legacyConfigFile} left in place (${configFile} exists; delete the old one)`,
+		])
+		expect(readConfig(root)?.product.name).toBe('old')
 	} finally {
 		await rm(dir, { recursive: true, force: true })
 	}
@@ -412,18 +455,19 @@ test('sync migrates the old names and merges from the moved base; --check only r
 		expect(existsSync(path.join(root, legacyBaseDir))).toBe(true)
 		expect(existsSync(path.join(root, path.dirname(baseDir)))).toBe(false)
 		expect(readConfig(root)?.product.name).toBe('old')
+		expect(await readFile(path.join(root, 'package.json'), 'utf8')).toBe(
+			legacyPackageJson,
+		)
 
 		const report = await syncTemplates(root, vars, { templatesDir: templates })
 		expect(report).toMatchObject({
-			renamed: renamedBoth,
+			renamed: renamedAll,
 			missingBase: [],
 			updated: ['managed/a.md'],
 			merged: ['managed/b.md'],
 			conflicts: [],
 		})
-		expect(existsSync(path.join(root, legacyConfigFile))).toBe(false)
-		expect(existsSync(path.join(root, path.dirname(legacyBaseDir)))).toBe(false)
-		expect(readConfig(root)?.policy).toEqual({ authority: { high: 'owner' } })
+		await expectMigrated(root, 'a2\n')
 		expect(await readFile(path.join(root, 'managed/b.md'), 'utf8')).toBe(
 			'zero\none\ntwo\nthree\nmine\n',
 		)
@@ -433,4 +477,17 @@ test('sync migrates the old names and merges from the moved base; --check only r
 	} finally {
 		await rm(dir, { recursive: true, force: true })
 	}
+})
+
+test('package.json migration touches only what named the old package', () => {
+	expect(migratePackageJson('{\n  "name": "x",\n  "scripts": {}\n}\n')).toBe(
+		undefined,
+	)
+	expect(
+		migratePackageJson(
+			'{\n  "scripts": { "harness": "harness", "reins": "reins" },\n  "devDependencies": { "@dom-kelly/reins": "file:x", "@dom-kelly/harness": "y" }\n}\n',
+		),
+	).toBe(
+		'{\n  "scripts": {\n    "reins": "reins"\n  },\n  "devDependencies": {\n    "@dom-kelly/reins": "file:x"\n  }\n}\n',
+	)
 })

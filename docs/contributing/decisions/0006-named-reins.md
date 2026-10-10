@@ -30,10 +30,10 @@ exist. `sync --check` renames nothing and reads the old locations.
 
 ## Consequences
 
-Products update their devDependency to
-`git+https://github.com/dom-kelly/reins.git`, run `npm install` and
-`npx reins sync`; the sync rewrites the hooks, husky lines and skills that still
-say `npx harness`, and renames the config and base directory. Until a product
-has migrated the CLI reads the old names, so an unmigrated product keeps
-working. Revisit if a product's `validate` or hooks must be edited by hand after
-a sync, which would mean the migration missed a managed file.
+Products run `npm i -D git+https://github.com/dom-kelly/reins.git`, then
+`npx reins sync` and `npm install` again: the sync rewrites the hooks, husky
+lines and skills that still say `npx harness`, renames the config and base
+directory and drops the old dependency. Until a product has migrated the CLI
+reads the old names (the merge policy too, from `origin/main`), so an unmigrated
+product keeps working. Revisit if a product's `validate` or hooks must be edited
+by hand after a sync, which would mean the migration missed a file.

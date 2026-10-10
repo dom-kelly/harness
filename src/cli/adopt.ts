@@ -3,12 +3,12 @@ import path from 'node:path'
 import { packageVersion, readConfig, writeConfig } from '../lib/config.ts'
 import {
 	applyTemplates,
+	dependencyName,
+	dependencySpec,
+	jsonIndent,
 	migrateLegacyNames,
 	type ApplyReport,
 } from '../lib/templates.ts'
-
-export const dependencyName = '@dom-kelly/reins'
-export const dependencySpec = 'git+https://github.com/dom-kelly/reins.git'
 
 /** What the templates' hooks and scripts expect a product to have. */
 export const expectedDevDependencies = {
@@ -29,7 +29,7 @@ type PackageJson = {
  *  anything that is already there. Keeps the file's indentation. */
 export function patchPackageJson(source: string) {
 	const pkg = JSON.parse(source) as PackageJson
-	const indent = /^\t/m.test(source) ? '\t' : 2
+	const indent = jsonIndent(source)
 	const added: Array<string> = []
 	pkg.devDependencies ??= {}
 	for (const [name, spec] of Object.entries(expectedDevDependencies)) {
