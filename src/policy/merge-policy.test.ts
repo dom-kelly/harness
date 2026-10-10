@@ -321,6 +321,44 @@ describe('merge policy: config comes from origin/main, not the working tree', ()
 			await rm(path.join(product, '.git'), { recursive: true, force: true })
 		}
 	})
+	it('reads harness.json from origin/main until the product has migrated', async () => {
+		const { execFileSync } = await import('node:child_process')
+		const git = (...args: Array<string>) =>
+			execFileSync('git', args, { cwd: product, stdio: 'ignore' })
+		const file = path.join(product, 'reins.json')
+		const legacy = path.join(product, 'harness.json')
+		const before = await import('node:fs').then((fs) =>
+			fs.readFileSync(file, 'utf8'),
+		)
+		const cfg = JSON.parse(before)
+		cfg.policy.authority = { high: 'agent' }
+		cfg.policy.reviewers = {}
+		await writeFile(legacy, JSON.stringify(cfg))
+		await rm(file)
+		git('init', '-q', '-b', 'main')
+		git('-c', 'user.email=t@t', '-c', 'user.name=t', 'add', '.')
+		git(
+			'-c',
+			'user.email=t@t',
+			'-c',
+			'user.name=t',
+			'commit',
+			'-q',
+			'-m',
+			'base',
+		)
+		git('update-ref', 'refs/remotes/origin/main', 'HEAD')
+		try {
+			// Without the old name the default (high: owner) would park this.
+			expect(
+				policy({ FILES: 'added:drizzle/0009.sql', CHECKS: BUGBOT }),
+			).toMatchObject({ allowed: true })
+		} finally {
+			await writeFile(file, before)
+			await rm(legacy)
+			await rm(path.join(product, '.git'), { recursive: true, force: true })
+		}
+	})
 })
 
 describe('merge policy: authority is per repo', () => {
