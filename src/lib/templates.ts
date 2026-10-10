@@ -1,8 +1,16 @@
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import {
+	existsSync,
+	mkdirSync,
+	readFileSync,
+	renameSync,
+	rmdirSync,
+	writeFileSync,
+} from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { configFile, legacyConfigFile } from './config.ts'
 import { packageRoot } from './repo.ts'
 
 /** templates/manifest.json: which files the harness writes into a product. */
@@ -18,7 +26,9 @@ export type TemplateVars = { name: string }
 export const defaultTemplatesDir = path.join(packageRoot, 'templates')
 
 /** Pristine copies of managed files as last applied, so sync can merge. */
-export const baseDir = '.harness/base'
+export const baseDir = '.reins/base'
+/** Where the copies lived before the package was called reins (decision 0006). */
+export const legacyBaseDir = '.harness/base'
 
 export function loadManifest(templatesDir = defaultTemplatesDir) {
 	return JSON.parse(
@@ -37,6 +47,35 @@ function readIfExists(file: string) {
 function writeFile(file: string, content: string) {
 	mkdirSync(path.dirname(file), { recursive: true })
 	writeFileSync(file, content)
+}
+
+function renameIfOnlyOld(root: string, from: string, to: string) {
+	const source = path.join(root, from)
+	const target = path.join(root, to)
+	if (!existsSync(source) || existsSync(target)) return false
+	mkdirSync(path.dirname(target), { recursive: true })
+	renameSync(source, target)
+	return true
+}
+
+/** Moves a product from the old names (`harness.json`, `.harness/base`) to the
+ *  reins ones where only the old exist. Returns what was renamed, as
+ *  `old → new`, so adopt and sync can say so. */
+export function migrateLegacyNames(root: string): Array<string> {
+	const renamed: Array<string> = []
+	for (const [from, to] of [
+		[legacyConfigFile, configFile],
+		[legacyBaseDir, baseDir],
+	] as const) {
+		if (renameIfOnlyOld(root, from, to)) renamed.push(`${from} → ${to}`)
+	}
+	try {
+		// .harness/ held nothing but the base copies; drop it once it is empty.
+		rmdirSync(path.join(root, path.dirname(legacyBaseDir)))
+	} catch {
+		// absent or not empty: leave it alone
+	}
+	return renamed
 }
 
 export type ApplyReport = { written: Array<string>; kept: Array<string> }
@@ -85,7 +124,9 @@ export function applyTemplates(
 }
 
 export type SyncReport = {
-	/** Managed files with no .harness/base copy: run `harness adopt` to record one. */
+	/** Old names moved to the reins ones (`old → new`), see migrateLegacyNames. */
+	renamed: Array<string>
+	/** Managed files with no .reins/base copy: run `reins adopt` to record one. */
 	missingBase: Array<string>
 	created: Array<string>
 	updated: Array<string>
@@ -159,6 +200,7 @@ export async function syncTemplates(
 ): Promise<SyncReport> {
 	const manifest = loadManifest(templatesDir)
 	const report: SyncReport = {
+		renamed: check ? [] : migrateLegacyNames(root),
 		missingBase: [],
 		created: [],
 		updated: [],
@@ -172,13 +214,19 @@ export async function syncTemplates(
 	const writeBase = (rel: string, content: string) => {
 		if (!check) writeFile(path.join(root, baseDir, rel), content)
 	}
+	// --check renames nothing, so it reads the base copies where they still are.
+	const baseFrom =
+		!existsSync(path.join(root, baseDir)) &&
+		existsSync(path.join(root, legacyBaseDir))
+			? legacyBaseDir
+			: baseDir
 	for (const rel of manifest.managed) {
 		const theirs = render(
 			readFileSync(path.join(templatesDir, rel), 'utf8'),
 			vars,
 		)
 		const ours = readIfExists(path.join(root, rel))
-		const base = readIfExists(path.join(root, baseDir, rel))
+		const base = readIfExists(path.join(root, baseFrom, rel))
 		if (ours !== undefined && base === undefined && ours !== theirs) {
 			report.missingBase.push(rel)
 			continue
@@ -224,9 +272,10 @@ export function formatSyncReport(report: SyncReport, check: boolean) {
 	section(`merged (local edits kept)`, report.merged)
 	section(`CONFLICTS (resolve the markers)`, report.conflicts)
 	section(
-		`NO BASE RECORDED (run \`harness adopt\` to record one, then sync again)`,
+		`NO BASE RECORDED (run \`reins adopt\` to record one, then sync again)`,
 		report.missingBase,
 	)
-	if (lines.length === 0) return 'sync: everything is up to date'
-	return `sync: ${lines.length} group(s) of files ${verb} changed\n${lines.map((l) => `  ${l}`).join('\n')}`
+	const renamed = report.renamed.map((r) => `renamed ${r}\n`).join('')
+	if (lines.length === 0) return `${renamed}sync: everything is up to date`
+	return `${renamed}sync: ${lines.length} group(s) of files ${verb} changed\n${lines.map((l) => `  ${l}`).join('\n')}`
 }

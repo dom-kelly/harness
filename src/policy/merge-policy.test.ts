@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { packageRoot } from '../lib/repo.ts'
 import { bodyField, prRefFromCommand } from './merge-policy.ts'
 
-// Runs the real `harness policy` against a stubbed `gh` (fixtures/gh), one
+// Runs the real `reins policy` against a stubbed `gh` (fixtures/gh), one
 // simulated PR per case, in a product with mealplanner-like tiers. A bypass here
 // would let an agent merge to production.
 
@@ -40,7 +40,7 @@ primitives:
 `,
 	)
 	await writeFile(
-		path.join(product, 'harness.json'),
+		path.join(product, 'reins.json'),
 		JSON.stringify({
 			harness: '0',
 			product: { name: 'demo' },
@@ -67,7 +67,7 @@ function policy(pr: Record<string, string>) {
 		'node',
 		[
 			'--disable-warning=ExperimentalWarning',
-			path.join(packageRoot, 'bin/harness.ts'),
+			path.join(packageRoot, 'bin/reins.ts'),
 			'policy',
 			'7',
 		],
@@ -300,7 +300,7 @@ describe('merge policy: config comes from origin/main, not the working tree', ()
 			'base',
 		)
 		git('update-ref', 'refs/remotes/origin/main', 'HEAD')
-		const file = path.join(product, 'harness.json')
+		const file = path.join(product, 'reins.json')
 		const before = await import('node:fs').then((fs) =>
 			fs.readFileSync(file, 'utf8'),
 		)
@@ -325,7 +325,7 @@ describe('merge policy: config comes from origin/main, not the working tree', ()
 
 describe('merge policy: authority is per repo', () => {
 	it('parks medium when the repo says owner', async () => {
-		const file = path.join(product, 'harness.json')
+		const file = path.join(product, 'reins.json')
 		const before = await import('node:fs').then((fs) =>
 			fs.readFileSync(file, 'utf8'),
 		)
@@ -341,7 +341,7 @@ describe('merge policy: authority is per repo', () => {
 		}
 	})
 	it('lets an agent merge high risk when the repo says so', async () => {
-		const file = path.join(product, 'harness.json')
+		const file = path.join(product, 'reins.json')
 		const before = await import('node:fs').then((fs) =>
 			fs.readFileSync(file, 'utf8'),
 		)

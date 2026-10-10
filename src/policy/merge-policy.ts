@@ -11,7 +11,7 @@ import {
 } from '../checks/primitives.ts'
 import { configFile, type HarnessConfig } from '../lib/config.ts'
 
-/** `harness.json` → `policy`. Mirrors kody's ship-pr tiers:
+/** `reins.json` → `policy`. Mirrors kody's ship-pr tiers:
  *    low    green CI
  *    medium + every gate reviewer's check passed and its findings addressed
  *    high   + every required reviewer has reviewed the current head
