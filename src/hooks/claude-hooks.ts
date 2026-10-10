@@ -4,6 +4,22 @@ import { homedir } from 'node:os'
 import path from 'node:path'
 import { readConfig } from '../lib/config.ts'
 
+/** Git exports GIT_DIR (absolute in a worktree) to its hooks. A script that
+ *  then runs git in another directory, as a test fixture does, would act on
+ *  the developer's repo instead; drop the variables so git finds the repo from
+ *  its cwd. */
+function withoutGitEnv(env = process.env) {
+	const clean = { ...env }
+	for (const key of [
+		'GIT_DIR',
+		'GIT_WORK_TREE',
+		'GIT_INDEX_FILE',
+		'GIT_PREFIX',
+	])
+		delete clean[key]
+	return clean
+}
+
 /** Runs an npm script with the Node from .nvmrc when nvm is installed: hooks
  *  inherit the shell's default Node, which may not be the one the project's
  *  native bindings were built for. Returns { status, output }. */
@@ -12,6 +28,7 @@ export function runNpmScript(root: string, script: string) {
 		process.env.NVM_DIR ?? path.join(homedir(), '.nvm'),
 		'nvm.sh',
 	)
+	const options = { cwd: root, encoding: 'utf8', env: withoutGitEnv() } as const
 	const result = existsSync(nvm)
 		? spawnSync(
 				'bash',
@@ -20,9 +37,9 @@ export function runNpmScript(root: string, script: string) {
 					`. "${nvm}" >/dev/null 2>&1; nvm use --silent >/dev/null 2>&1; npm run -s "$0"`,
 					script,
 				],
-				{ cwd: root, encoding: 'utf8' },
+				options,
 			)
-		: spawnSync('npm', ['run', '-s', script], { cwd: root, encoding: 'utf8' })
+		: spawnSync('npm', ['run', '-s', script], options)
 	return {
 		status: result.status ?? 1,
 		output: `${result.stdout ?? ''}${result.stderr ?? ''}`,
