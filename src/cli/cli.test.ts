@@ -189,34 +189,52 @@ test('the harness uses the same skills it ships (copies, not a symlink)', async 
 	}
 })
 
-type Settings = {
-	hooks: Record<string, Array<{ hooks: Array<{ command: string }> }>>
-}
+type Hook = { command: string; onFailure?: string }
+type Settings = { hooks: Record<string, Array<{ hooks: Array<Hook> }>> }
 
-async function hookCommands(file: string) {
+async function hooksByEvent(file: string) {
 	const settings = JSON.parse(await readFile(file, 'utf8')) as Settings
-	return Object.values(settings.hooks).flatMap((entries) =>
-		entries.flatMap((entry) => entry.hooks.map((hook) => hook.command)),
+	return Object.fromEntries(
+		Object.entries(settings.hooks).map(([event, entries]) => [
+			event,
+			entries.flatMap((entry) => entry.hooks),
+		]),
 	)
 }
 
 // Claude Code reads hook exit 1 as "not blocking", so a hook that cannot start
 // would silently switch the guard off; and a bare `npx harness` falls back to
-// the public registry, where an unrelated `harness` package exists.
+// the public registry, where an unrelated `harness` package exists. The Stop
+// hook is the exception: exit 2 there sends the agent back to a repair it
+// cannot make (the guard blocks `npm install` too), so it only warns.
 test('Claude hook commands fail closed when the harness is not installed', async () => {
-	const shipped = await hookCommands(
-		path.join(packageRoot, 'templates/.claude/settings.json'),
-	)
-	expect(shipped).toHaveLength(3)
-	for (const command of shipped) {
-		expect(command).toContain('npx --no-install harness hook ')
-		expect(command).toContain('exit 2')
+	const blocks = / \|\| \{ \[ \$\? -eq 2 \] \|\| echo '[^']+' >&2; exit 2; \}$/
+	const warns =
+		/ \|\| \{ \[ \$\? -eq 2 \] && exit 2; echo '[^']+' >&2; exit 1; \}$/
+	for (const [file, start] of [
+		['templates/.claude/settings.json', 'npx --no-install harness hook '],
+		['.claude/settings.json', 'node '],
+	] as const) {
+		const hooks = await hooksByEvent(path.join(packageRoot, file))
+		expect(Object.keys(hooks).toSorted()).toEqual([
+			'PostToolUse',
+			'PreToolUse',
+			'Stop',
+		])
+		for (const [event, entries] of Object.entries(hooks)) {
+			expect(entries, `${file} ${event}`).toHaveLength(1)
+			const [hook] = entries
+			expect(hook!.command.startsWith(start), `${file} ${event}`).toBe(true)
+			if (event === 'Stop') {
+				expect(hook!.command, `${file} ${event}`).toMatch(warns)
+				expect(hook!.onFailure).toBeUndefined()
+			} else {
+				expect(hook!.command, `${file} ${event}`).toMatch(blocks)
+				// Covers a timeout as well, on Claude Code 2.1.295+.
+				expect(hook!.onFailure, `${file} ${event}`).toBe('block')
+			}
+		}
 	}
-	const own = await hookCommands(
-		path.join(packageRoot, '.claude/settings.json'),
-	)
-	expect(own).toHaveLength(3)
-	for (const command of own) expect(command).toContain('exit 2')
 })
 
 test('doctor reports whether the harness is installed in the repo itself', async () => {

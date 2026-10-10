@@ -17,9 +17,11 @@ or a test, make it one and delete the line.
   (`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`). Trust the pack-and-install
   lane, not a linked run.
 - Claude Code reads hook exit 1 as "not blocking", so a hook command that cannot
-  start must map every failure to exit 2; and `npx <name>` falls back to the
-  public registry unless `--no-install` (an unrelated `harness` package exists
-  there).
+  start must map its failure to exit 2 (`"onFailure": "block"` does the same
+  natively on 2.1.295+, timeouts included) except on Stop, where exit 2 only
+  sends the agent back to a repair it cannot make. `npx <name>` consults the
+  public registry unless `--no-install`; an unrelated `harness` package exists
+  there (without a bin today, so the symptom was a silent exit 1).
 - A symlink in the repo breaks `git stash` (used by lint-staged) with "beyond a
   symbolic link"; keep copies and a test that they match.
 - npm records a GitHub git dependency as an SSH URL in the lockfile whatever the

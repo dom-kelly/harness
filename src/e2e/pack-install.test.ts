@@ -18,12 +18,15 @@ const pushToMain = JSON.stringify({
 	tool_input: { command: 'git push origin main' },
 })
 
-/** The PreToolUse hook exactly as Claude Code runs it: `sh -c`, JSON on stdin. */
-function runGuard(command: string, cwd: string) {
+/** The PreToolUse hook exactly as Claude Code runs it: `sh -c`, JSON on
+ *  stdin. The npm prefix points at an empty dir so a globally linked `harness`
+ *  on the developer's machine cannot stand in for the product's own. */
+function runGuard(command: string, cwd: string, emptyPrefix: string) {
 	return spawnSync('sh', ['-c', command], {
 		cwd,
 		encoding: 'utf8',
 		input: pushToMain,
+		env: { ...process.env, npm_config_prefix: emptyPrefix },
 	})
 }
 
@@ -55,7 +58,7 @@ test('a product built from the packed package passes its own validate', async ()
 			readFileSync(path.join(product, '.claude/settings.json'), 'utf8'),
 		) as { hooks: { PreToolUse: Array<{ hooks: Array<{ command: string }> }> } }
 		const guardCommand = settings.hooks.PreToolUse[0]!.hooks[0]!.command
-		const uninstalled = runGuard(guardCommand, product)
+		const uninstalled = runGuard(guardCommand, product, dir)
 		expect(uninstalled.status, uninstalled.stderr).toBe(2)
 		expect(uninstalled.stderr).toContain('the harness guard did not run')
 
@@ -88,7 +91,7 @@ test('a product built from the packed package passes its own validate', async ()
 		expect(guard.status).toBe(2)
 		// Through the real command line the guard's own refusal comes back, not
 		// the "did not run" message.
-		const installed = runGuard(guardCommand, product)
+		const installed = runGuard(guardCommand, product, dir)
 		expect(installed.status, installed.stderr).toBe(2)
 		expect(installed.stderr).toContain('Pushing straight to main')
 		expect(installed.stderr).not.toContain('did not run')
