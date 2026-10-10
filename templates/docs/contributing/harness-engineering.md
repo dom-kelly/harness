@@ -81,6 +81,9 @@ place are in [growth.md](./growth.md).
 - A PreToolUse hook (`the harness guard hook (`npx harness hook guard-bash`)`)
   blocks force-pushes, `--no-verify`, `git reset --hard`, and `git clean -f`,
   with a message saying what to do instead.
+- The hooks refuse to run (exit 2) when the harness is not installed, so an
+  uninstalled harness blocks rather than silently allows; `npm install` fixes
+  it.
 
 Git hooks (`.husky/`) format staged files on commit and run typecheck and tests
 on push, skipping them for docs-only diffs. They apply to any agent, not only

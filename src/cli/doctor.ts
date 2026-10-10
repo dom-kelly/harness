@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { checkNodeVersion } from '../checks/node-version.ts'
 import { packageVersion, readConfig } from '../lib/config.ts'
+import { packageRoot } from '../lib/repo.ts'
 
 type Item = { label: string; ok: boolean; fix: string }
 
@@ -21,6 +22,17 @@ export function doctor(root: string): Array<Item> {
 		{
 			label: 'node_modules installed',
 			ok: existsSync(path.join(root, 'node_modules')),
+			fix: 'npm install',
+		},
+		{
+			// This CLI may be a global or linked copy; the hooks in .claude/settings.json
+			// need the product's own. The harness repo runs its hooks from source.
+			label: "harness installed in this repo's node_modules",
+			ok:
+				root === packageRoot ||
+				existsSync(
+					path.join(root, 'node_modules/@dom-kelly/harness/package.json'),
+				),
 			fix: 'npm install',
 		},
 		{

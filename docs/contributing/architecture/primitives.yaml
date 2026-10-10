@@ -9,9 +9,11 @@ scan:
   - templates
   - scaffold
 
-# Docs and the map itself belong to no primitive; changing them alone is low risk.
+# Docs, the map itself and the repo's own agent config (.claude/, a copy of
+# what products receive) belong to no primitive; changing them alone is low risk.
 unowned:
   - docs/
+  - .claude/
   - README.md
   - AGENTS.md
   - CLAUDE.md

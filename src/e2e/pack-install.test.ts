@@ -14,6 +14,19 @@ function run(command: string, args: Array<string>, cwd: string) {
 	}
 }
 
+const pushToMain = JSON.stringify({
+	tool_input: { command: 'git push origin main' },
+})
+
+/** The PreToolUse hook exactly as Claude Code runs it: `sh -c`, JSON on stdin. */
+function runGuard(command: string, cwd: string) {
+	return spawnSync('sh', ['-c', command], {
+		cwd,
+		encoding: 'utf8',
+		input: pushToMain,
+	})
+}
+
 // The harness uses itself: pack the package, create a product with the packed
 // CLI, install the tarball into the product, and run the product's own gate,
 // which calls `npx harness check` from node_modules. Unit tests run the source;
@@ -35,6 +48,16 @@ test('a product built from the packed package passes its own validate', async ()
 			dir,
 		)
 		expect(created.code, created.out).toBe(0)
+
+		// Before install, the hook command Claude Code would run must block
+		// (exit 2) and say why, not fail quietly or fetch `harness` from npm.
+		const settings = JSON.parse(
+			readFileSync(path.join(product, '.claude/settings.json'), 'utf8'),
+		) as { hooks: { PreToolUse: Array<{ hooks: Array<{ command: string }> }> } }
+		const guardCommand = settings.hooks.PreToolUse[0]!.hooks[0]!.command
+		const uninstalled = runGuard(guardCommand, product)
+		expect(uninstalled.status, uninstalled.stderr).toBe(2)
+		expect(uninstalled.stderr).toContain('the harness guard did not run')
 
 		const pkgFile = path.join(product, 'package.json')
 		const pkg = JSON.parse(readFileSync(pkgFile, 'utf8'))
@@ -60,11 +83,15 @@ test('a product built from the packed package passes its own validate', async ()
 		const guard = spawnSync('npx', ['harness', 'hook', 'guard-bash'], {
 			cwd: product,
 			encoding: 'utf8',
-			input: JSON.stringify({
-				tool_input: { command: 'git push origin main' },
-			}),
+			input: pushToMain,
 		})
 		expect(guard.status).toBe(2)
+		// Through the real command line the guard's own refusal comes back, not
+		// the "did not run" message.
+		const installed = runGuard(guardCommand, product)
+		expect(installed.status, installed.stderr).toBe(2)
+		expect(installed.stderr).toContain('Pushing straight to main')
+		expect(installed.stderr).not.toContain('did not run')
 	} finally {
 		await rm(dir, { recursive: true, force: true })
 	}

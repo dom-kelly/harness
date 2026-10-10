@@ -16,6 +16,10 @@ or a test, make it one and delete the line.
   `.ts` entry points work there and fail from `node_modules`
   (`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`). Trust the pack-and-install
   lane, not a linked run.
+- Claude Code reads hook exit 1 as "not blocking", so a hook command that cannot
+  start must map every failure to exit 2; and `npx <name>` falls back to the
+  public registry unless `--no-install` (an unrelated `harness` package exists
+  there).
 - A symlink in the repo breaks `git stash` (used by lint-staged) with "beyond a
   symbolic link"; keep copies and a test that they match.
 - npm records a GitHub git dependency as an SSH URL in the lockfile whatever the
